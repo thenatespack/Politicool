@@ -91,6 +91,10 @@ ENV LC_ALL=en_US.UTF-8
 WORKDIR "/app"
 RUN chown nobody /app
 
+# Persistent research cache (a named volume is mounted here; Docker copies this
+# directory's ownership into a fresh volume, so `nobody` can write to it)
+RUN mkdir -p /app/research_cache && chown nobody /app/research_cache
+
 # set runner ENV
 ENV MIX_ENV="prod"
 

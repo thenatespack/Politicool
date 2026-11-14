@@ -33,7 +33,10 @@ defmodule Polticool.Research do
   `config :polticool, :research_mode, :live | :cached`. Cached replays
   `<cache_dir>/<LE_CODE>.etf` (see `mix polticool.record_research`) with
   `config :polticool, :research_replay_delay_ms` between messages (default 700, 0 in test).
-  The cache directory is `:research_cache_dir` (default `priv/research_cache`).
+  The cache directory is `:research_cache_dir` (default `priv/research_cache`; in
+  production set from `RESEARCH_CACHE_DIR`, a persistent volume). Recordings are written
+  there. Replay reads it first and falls back to the copy committed under
+  `priv/research_cache`.
 
   Receipts are scored by `Polticool.Scoring`: receipts tied to a floor vote count on the
   Voted bar; track-record (pre-pledge) and possibly-related receipts are untested and
@@ -59,7 +62,19 @@ defmodule Polticool.Research do
       Application.app_dir(:polticool, "priv/research_cache")
   end
 
+  @doc "The committed fallback directory shipped inside the release."
+  def bundled_cache_dir, do: Application.app_dir(:polticool, "priv/research_cache")
+
+  @doc "Where `record/2` writes a run."
   def cache_path(le_code), do: Path.join(cache_dir(), "#{String.upcase(le_code)}.etf")
+
+  @doc "Where replay reads a run: the cache dir first, then the committed copy."
+  def read_path(le_code) do
+    name = "#{String.upcase(le_code)}.etf"
+    primary = Path.join(cache_dir(), name)
+
+    if File.exists?(primary), do: primary, else: Path.join(bundled_cache_dir(), name)
+  end
 
   @doc "Starts a run. See the moduledoc."
   def start(input, opts \\ []) do
@@ -123,7 +138,7 @@ defmodule Polticool.Research do
 
   # In cached mode a code with a saved run works even with an empty database.
   defp from_cache_or_missing(input) do
-    if mode() == :cached and File.exists?(cache_path(input)),
+    if mode() == :cached and File.exists?(read_path(input)),
       do: {:ok, {:one, String.upcase(input)}},
       else: {:error, :not_found}
   end
@@ -148,7 +163,7 @@ defmodule Polticool.Research do
     code = if is_binary(target), do: target, else: target.le_code
 
     with code when is_binary(code) <- code,
-         {:ok, bin} <- File.read(cache_path(code)) do
+         {:ok, bin} <- File.read(read_path(code)) do
       delay = Application.get_env(:polticool, :research_replay_delay_ms, 700)
 
       # `:safe` only accepts atoms that already exist. Dev and test load modules

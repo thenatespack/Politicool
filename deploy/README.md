@@ -52,3 +52,51 @@ Roll back to an earlier build:
 ```sh
 APP_TAG=<older-sha> docker compose up -d app
 ```
+
+## Running data jobs on the server
+
+The production image is a release with no `mix`, so the mix tasks have release
+equivalents in `Polticool.Release`. Run them from `/opt/polticool` (they use the
+container's env, so `LEGISCAN_API_KEY` / `ANTHROPIC_API_KEY` in `.env` apply). They start
+the full app (Repo, PubSub, Finch) but not the web listener. If your user is not in the
+`docker` group, prefix with `sudo`.
+
+**LegiScan import** (about 3 LegiScan queries: 1 getDatasetList plus 1 per changed session;
+default sessions 2026GS and 2025GS):
+
+```sh
+cd /opt/polticool
+sudo docker compose exec app bin/polticool eval "Polticool.Release.import_legiscan()"
+# options: sessions: ["2026GS"], zips: ["/app/ds.zip"] (no API calls), force: true,
+#          strict: true, refresh_roster: true
+sudo docker compose exec app bin/polticool eval 'Polticool.Release.import_legiscan(sessions: ["2026GS"], force: true)'
+```
+
+It prints per-session stats and any unmapped legislators (fix them in
+`priv/data/legiscan_people.json`, commit, deploy, re-run).
+
+**Record the cached research run** (about 70 Anthropic calls; `--skip-ingest` equivalent is
+`skip_ingest: true`, which uses bills already in the database instead of le.utah.gov):
+
+```sh
+cd /opt/polticool
+sudo docker compose exec app bin/polticool eval 'Polticool.Release.record_research("THURSNK", skip_ingest: true)'
+```
+
+It prints the saved path, message count, and the final grade, bars and counts.
+
+**Where the recording lives.** It is written to `/app/research_cache/THURSNK.etf` inside the
+`research_cache` named volume (`RESEARCH_CACHE_DIR`), which survives redeploys. Cached mode
+(`RESEARCH_MODE=cached` in `.env`) reads the volume first and falls back to the file committed
+under `priv/research_cache/`. To commit the recording:
+
+```sh
+cd /opt/polticool
+sudo docker compose cp app:/app/research_cache/THURSNK.etf ./
+# then scp it off the server to priv/research_cache/THURSNK.etf in the repo and commit
+```
+
+**First deploy of the volume:** the new `research_cache` volume is only created when the
+compose file changes are applied, so after the deploy run `sudo docker compose up -d`
+(the deploy workflow already does this on each push, but run it by hand if you copied
+`docker-compose.yml` yourself).

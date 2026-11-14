@@ -35,8 +35,12 @@ services:
       PHX_HOST: polticool.nathanspackman.com
       PORT: "4000"
       DATABASE_URL: ecto://polticool:${POSTGRES_PASSWORD}@db/polticool_prod
+      RESEARCH_CACHE_DIR: /app/research_cache
+    volumes:
+      - research_cache:/app/research_cache
     ports:
       - "127.0.0.1:4010:4000"
 
 volumes:
   pgdata:
+  research_cache:

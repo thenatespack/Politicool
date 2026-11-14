@@ -26,26 +26,6 @@ defmodule Mix.Tasks.Polticool.RecordResearch do
 
   defp record(input, opts) do
     Mix.Task.run("app.start")
-    Application.put_env(:polticool, :research_mode, :live)
-
-    research_opts =
-      if opts[:skip_ingest], do: [ingest: &existing_bills/1], else: []
-
-    case Polticool.Research.record(input, research_opts) do
-      {:ok, path, msgs} -> Mix.shell().info("saved #{length(msgs)} messages to #{path}")
-      {:error, reason} -> Mix.raise("recording failed: #{inspect(reason)}")
-    end
-  end
-
-  defp existing_bills(candidate) do
-    import Ecto.Query
-
-    count =
-      Polticool.Repo.aggregate(
-        from(b in Polticool.Ballot.Bill, where: b.prime_sponsor == ^candidate.le_code),
-        :count
-      )
-
-    {:ok, count}
+    Polticool.Research.Recorder.run(input, skip_ingest: opts[:skip_ingest] || false)
   end
 end

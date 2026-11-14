@@ -98,7 +98,7 @@ defmodule Polticool.ResearchTest do
       end
     end)
 
-    %{c: c}
+    %{c: c, dir: dir}
   end
 
   defp live_opts, do: [ingest: fn _ -> {:ok, 1} end]
@@ -200,5 +200,104 @@ defmodule Polticool.ResearchTest do
 
     assert {:ok, _} = Research.start("THURSNK")
     assert {:failed, %{reason: "no cached run"}} = List.last(drain())
+  end
+
+  describe "cache dir" do
+    test "RESEARCH_CACHE_DIR sets :research_cache_dir in runtime.exs" do
+      old = System.get_env("RESEARCH_CACHE_DIR")
+      System.put_env("RESEARCH_CACHE_DIR", "/data/research")
+
+      on_exit(fn ->
+        if old,
+          do: System.put_env("RESEARCH_CACHE_DIR", old),
+          else: System.delete_env("RESEARCH_CACHE_DIR")
+      end)
+
+      config = Config.Reader.read!("config/runtime.exs", env: :test, target: :host)
+      assert get_in(config, [:polticool, :research_cache_dir]) == "/data/research"
+    end
+
+    test "cache_dir/0 and cache_path/1 resolve from config", %{dir: dir} do
+      assert Research.cache_dir() == dir
+      assert Research.cache_path("thursnk") == Path.join(dir, "THURSNK.etf")
+    end
+
+    test "read_path prefers the volume, then falls back to the committed copy", %{dir: dir} do
+      assert Research.read_path("zzfallbk") ==
+               Path.join(Research.bundled_cache_dir(), "ZZFALLBK.etf")
+
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "ZZFALLBK.etf"), "x")
+      assert Research.read_path("zzfallbk") == Path.join(dir, "ZZFALLBK.etf")
+    end
+
+    test "cached mode replays a committed copy when the volume is empty", %{dir: dir} do
+      assert {:ok, _, recorded} = Research.record("THURSNK", live_opts())
+      bundled_dir = Research.bundled_cache_dir()
+      File.mkdir_p!(bundled_dir)
+      bundled = Path.join(bundled_dir, "THURSNK.etf")
+      File.cp!(Research.cache_path("THURSNK"), bundled)
+      File.rm_rf!(dir)
+
+      on_exit(fn -> File.rm(bundled) end)
+      Application.put_env(:polticool, :research_mode, :cached)
+
+      assert {:ok, _} = Research.start("THURSNK")
+      assert drain() == recorded
+    end
+  end
+
+  describe "Polticool.Release wrappers" do
+    test "record_research delegates and writes to the cache dir" do
+      out =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert :ok = Polticool.Release.record_research("THURSNK", skip_ingest: true)
+        end)
+
+      assert out =~ "saved"
+      assert out =~ "grade"
+      assert File.exists?(Research.cache_path("THURSNK"))
+    end
+
+    test "import_legiscan imports a zip and prints the summary" do
+      bill = %{
+        "bill" => %{
+          "bill_id" => 1,
+          "bill_number" => "HB1",
+          "title" => "T",
+          "state_link" => "https://le.utah.gov/HB1",
+          "session" => %{"session_name" => "2026 General Session", "year_start" => 2026},
+          "sponsors" => []
+        }
+      }
+
+      {:ok, {_, zip}} =
+        :zip.create(
+          ~c"ds.zip",
+          [{~c"UT/2026_General_Session/bill/hb1.json", Jason.encode!(bill)}],
+          [:memory]
+        )
+
+      path = Path.join(System.tmp_dir!(), "ds_#{System.unique_integer([:positive])}.zip")
+      File.write!(path, zip)
+      on_exit(fn -> File.rm(path) end)
+
+      out =
+        ExUnit.CaptureIO.capture_io(fn ->
+          assert :ok = Polticool.Release.import_legiscan(zips: [path])
+        end)
+
+      assert out =~ "#{path}:"
+      assert out =~ "bills: 1"
+      assert Repo.get_by(Bill, session: "2026GS", number: "HB0001")
+    end
+
+    test "import_legiscan raises on a bad zip" do
+      assert_raise RuntimeError, ~r/LegiScan import failed/, fn ->
+        ExUnit.CaptureIO.capture_io(fn ->
+          Polticool.Release.import_legiscan(zips: ["not-a-zip"])
+        end)
+      end
+    end
   end
 end
