@@ -112,6 +112,18 @@ jobs:
             cd /opt/polticool
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             export APP_IMAGE APP_TAG
+
+            # Persist the deployed image in .env so later manual `docker compose`
+            # commands (up/exec/run) resolve to this build instead of the compose
+            # default. Rewrite in place (cat >) to keep .env's owner and mode 600.
+            touch .env
+            tmp="$(mktemp)"
+            grep -v -e '^APP_IMAGE=' -e '^APP_TAG=' .env > "$tmp" || true
+            if [ -s "$tmp" ] && [ -n "$(tail -c1 "$tmp")" ]; then echo >> "$tmp"; fi
+            printf 'APP_IMAGE=%s\nAPP_TAG=%s\n' "$APP_IMAGE" "$APP_TAG" >> "$tmp"
+            cat "$tmp" > .env
+            rm -f "$tmp"
+
             docker compose pull app
             docker compose up -d db
             docker compose run --rm app bin/migrate

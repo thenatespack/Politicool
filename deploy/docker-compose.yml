@@ -24,7 +24,7 @@ services:
       retries: 10
 
   app:
-    image: ${APP_IMAGE:-ghcr.io/thenatespack/polticool}:${APP_TAG:-latest}
+    image: ${APP_IMAGE:-ghcr.io/thenatespack/politicool}:${APP_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:
