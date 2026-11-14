@@ -75,6 +75,27 @@ sudo docker compose exec app bin/polticool eval 'Polticool.Release.import_legisc
 It prints per-session stats and any unmapped legislators (fix them in
 `priv/data/legiscan_people.json`, commit, deploy, re-run).
 
+**Backfill bill text** (one le.utah.gov request per bill, 2 s apart; no API quota). LegiScan
+datasets carry no bill text, and matching only runs on bills with text, so run this before
+recording. It only fills `provisions`/`versions` (and blank sponsor fields), never votes. Do
+**not** run a full le.utah.gov ingest on prod: its votes would duplicate the LegiScan ones.
+
+```sh
+cd /opt/polticool
+sudo docker compose exec app bin/polticool eval 'Polticool.Release.backfill_bill_text("THURSNK")'
+```
+
+**Seeds** (idempotent; removes SAMPLE placeholder pledges). A bare `eval` of
+`Polticool.Seeds.hd62!()` fails because the Repo isn't started; use the wrapper:
+
+```sh
+sudo docker compose exec app bin/polticool eval 'Polticool.Release.seed()'
+```
+
+**Manual `docker compose up -d`:** run `sudo docker compose pull app` first. The compose file
+falls back to the `:latest` tag, and the cached `:latest` on the server can be older than the
+deployed SHA image.
+
 **Record the cached research run** (about 70 Anthropic calls; `--skip-ingest` equivalent is
 `skip_ingest: true`, which uses bills already in the database instead of le.utah.gov):
 

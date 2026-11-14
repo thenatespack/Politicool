@@ -38,6 +38,73 @@ defmodule Polticool.Release do
     :ok
   end
 
+  @doc """
+  Fills in missing bill text from le.utah.gov for bills sponsored by `le_code`
+  (LegiScan datasets have no text, and matching only runs on bills with text).
+  Only updates text fields, never votes. One le.utah.gov request per bill, spaced
+  by `delay_ms:` (default 2000). `all: true` refetches bills that already have text.
+
+      bin/polticool eval 'Polticool.Release.backfill_bill_text("THURSNK")'
+  """
+  def backfill_bill_text(le_code, opts \\ []) do
+    import Ecto.Query
+    start_app()
+
+    delay = Keyword.get(opts, :delay_ms, 2000)
+    sessions = Keyword.get(opts, :sessions, ["2026GS", "2025GS"])
+
+    query =
+      from b in Polticool.Ballot.Bill,
+        where: b.session in ^sessions,
+        where: b.prime_sponsor == ^le_code or ^le_code in b.sponsors,
+        order_by: [b.session, b.number]
+
+    query =
+      if opts[:all],
+        do: query,
+        else: where(query, [b], is_nil(b.provisions) or b.provisions == "")
+
+    bills = Polticool.Repo.all(query)
+    IO.puts("#{le_code}: #{length(bills)} bills need text")
+
+    results =
+      bills
+      |> Enum.with_index()
+      |> Enum.map(fn {bill, i} ->
+        if i > 0, do: Process.sleep(delay)
+
+        case Polticool.Legislature.backfill_text(bill, Keyword.take(opts, [:plug])) do
+          {:ok, %{provisions: p}} when is_binary(p) and p != "" ->
+            IO.puts("  ok    #{bill.session} #{bill.number}")
+            :ok
+
+          {:ok, _} ->
+            IO.puts("  empty #{bill.session} #{bill.number} (no provisions in le.utah.gov JSON)")
+            :empty
+
+          {:error, reason} ->
+            IO.puts("  FAIL  #{bill.session} #{bill.number}: #{inspect(reason)}")
+            :error
+        end
+      end)
+
+    summary = Enum.frequencies(results)
+    IO.puts("#{le_code}: #{inspect(summary)}")
+    summary
+  end
+
+  @doc """
+  Runs the HD62 seeds (idempotent; also removes SAMPLE placeholder pledges).
+
+      bin/polticool eval 'Polticool.Release.seed()'
+  """
+  def seed do
+    start_app()
+    Polticool.Seeds.hd62!()
+    IO.puts("seeded")
+    :ok
+  end
+
   def rollback(repo, version) do
     load_app()
     {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))
