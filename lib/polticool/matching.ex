@@ -171,7 +171,7 @@ defmodule Polticool.Matching do
           {:ok,
            %{
              relation: rel,
-             confidence: String.to_existing_atom(conf),
+             confidence: confidence_atom(conf),
              rationale: input["rationale"] || verdict,
              quote: input["quote"]
            }}
@@ -181,6 +181,12 @@ defmodule Polticool.Matching do
       end
     end
   end
+
+  # Explicit map: String.to_existing_atom/1 fails in dev/mix tasks when the module
+  # defining the atom hasn't been loaded yet.
+  defp confidence_atom("high"), do: :high
+  defp confidence_atom("medium"), do: :medium
+  defp confidence_atom("low"), do: :low
 
   defp store(pledge, bill, cited_blocks, fmt, opts) do
     citations =
