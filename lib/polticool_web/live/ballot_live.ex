@@ -12,7 +12,9 @@ defmodule PolticoolWeb.BallotLive do
   alias PolticoolWeb.{IssueCategories, Races}
 
   # Ballot measures shown in the Amendments section, read from their bills.
-  @amendments [%{key: "amendment-a", name: "Amendment A", session: "2025GS", number: "HJR010"}]
+  @amendments [
+    %{key: "amendment-a", slug: "a", name: "Amendment A", session: "2025GS", number: "HJR010"}
+  ]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -149,7 +151,7 @@ defmodule PolticoolWeb.BallotLive do
               </h3>
               <.link
                 id={"brief-#{judge.slug}"}
-                href={judge.brief_path}
+                navigate={judge.brief_path}
                 aria-describedby={"#{dom_id}-title"}
                 class="shrink-0 text-[12.5px] font-semibold text-accent"
               >
@@ -173,7 +175,19 @@ defmodule PolticoolWeb.BallotLive do
             id={dom_id}
             class="rounded-[12px] border border-rule bg-surface p-3.5"
           >
-            <h3 class="font-serif text-[17px] leading-tight">{amendment.name}</h3>
+            <header class="flex items-baseline justify-between gap-3">
+              <h3 id={"#{dom_id}-title"} class="font-serif text-[17px] leading-tight">
+                {amendment.name}
+              </h3>
+              <.link
+                id={"decode-#{amendment.key}"}
+                navigate={amendment.decode_path}
+                aria-describedby={"#{dom_id}-title"}
+                class="shrink-0 text-[12.5px] font-semibold text-accent"
+              >
+                Decode <span aria-hidden="true">→</span>
+              </.link>
+            </header>
             <p :if={amendment.summary} class="mt-1.5 text-[13px] text-ink-soft">
               {amendment.summary}
             </p>
@@ -273,14 +287,18 @@ defmodule PolticoolWeb.BallotLive do
       slug: slug,
       name: if(judge, do: "Justice #{judge.name}", else: race.office),
       office: race.office,
-      # TODO(919): switch to ~p once the judge briefing route exists.
-      brief_path: "/races/judicial/#{slug}"
+      brief_path: ~p"/races/judicial/#{slug}"
     }
   end
 
   defp amendment_cards do
     for a <- @amendments, bill <- [Legislature.get_bill(a.session, a.number)], bill != nil do
-      %{key: a.key, name: a.name, summary: bill.provisions}
+      %{
+        key: a.key,
+        name: a.name,
+        summary: bill.provisions,
+        decode_path: ~p"/amendments/#{a.slug}"
+      }
     end
   end
 
