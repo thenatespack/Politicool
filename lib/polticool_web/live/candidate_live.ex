@@ -13,11 +13,11 @@ defmodule PolticoolWeb.CandidateLive do
   """
   use PolticoolWeb, :live_view
 
-  alias Polticool.Ballot
+  alias Polticool.{Ballot, Money}
   alias Polticool.Ballot.Receipt
   alias PolticoolWeb.IssueCategories
 
-  import PolticoolWeb.ScoreComponents
+  import PolticoolWeb.{MoneyComponents, ScoreComponents}
 
   @impl true
   def mount(_params, _session, socket), do: {:ok, socket}
@@ -35,11 +35,14 @@ defmodule PolticoolWeb.CandidateLive do
         receipts = for p <- candidate.pledges, r <- p.receipts, do: {p, r}
         {graded, track_record} = Enum.split_with(receipts, fn {_p, r} -> !r.track_record end)
         groups = groups(candidate, graded)
+        industries = Money.top_industries(candidate)
 
         {:noreply,
          assign(socket,
            page_title: candidate.name,
            candidate: candidate,
+           industries: industries,
+           donors: Enum.map(industries, & &1.industry),
            scorecard: Ballot.scorecard(candidate),
            stats: stats(receipts),
            groups: groups,
@@ -116,7 +119,7 @@ defmodule PolticoolWeb.CandidateLive do
         </h2>
         <ul class="space-y-2">
           <li :for={item <- group.items}>
-            <.receipt_row item={item} current={@current} candidate={@candidate} />
+            <.receipt_row item={item} current={@current} candidate={@candidate} donors={@donors} />
           </li>
         </ul>
       </section>
@@ -151,9 +154,19 @@ defmodule PolticoolWeb.CandidateLive do
         </p>
         <ul class="space-y-2">
           <li :for={item <- @track_record}>
-            <.receipt_row item={item} current={@current} candidate={@candidate} />
+            <.receipt_row item={item} current={@current} candidate={@candidate} donors={@donors} />
           </li>
         </ul>
+      </section>
+
+      <section :if={@industries != []} id="money" aria-labelledby="money-title">
+        <h2
+          id="money-title"
+          class="mb-2 mt-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint"
+        >
+          Money · top donor industries
+        </h2>
+        <.money_bar id="money-bar" industries={@industries} />
       </section>
 
       <section
@@ -178,10 +191,19 @@ defmodule PolticoolWeb.CandidateLive do
   attr :item, :map, required: true
   attr :current, :map, default: nil
   attr :candidate, :map, required: true
+  attr :donors, :list, default: [], doc: "the candidate's top donor industry names"
 
   defp receipt_row(assigns) do
+    related =
+      Enum.filter(
+        IssueCategories.related_industries(assigns.item.category),
+        &(&1 in assigns.donors)
+      )
+
     assigns =
-      assign(assigns, :selected?, assigns.current && assigns.current.id == assigns.item.id)
+      assigns
+      |> assign(:selected?, assigns.current && assigns.current.id == assigns.item.id)
+      |> assign(:related, related)
 
     ~H"""
     <button
@@ -204,6 +226,7 @@ defmodule PolticoolWeb.CandidateLive do
         {@item.title}
         <small :if={@item.meta} class="block text-[11px] text-faint">{@item.meta}</small>
         <.verified_badge :if={@item.receipt.verified} class="text-[10.5px]" />
+        <.donor_tag :if={@related != []} industries={@related} class="mt-0.5 flex" />
       </span>
     </button>
     """
