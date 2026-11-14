@@ -45,7 +45,7 @@ defmodule Polticool.Ballot.RollCall do
   def fetch(session, vote_id, house, opts \\ []) do
     req_opts = Keyword.get(opts, :req_options, [])
 
-    case Req.get(url(session, vote_id, house), [retry: false] ++ req_opts) do
+    case Req.get(url(session, vote_id, house), Keyword.merge([retry: false], req_opts)) do
       {:ok, %{status: 200, body: body}} when is_binary(body) -> {:ok, body}
       {:ok, %{status: status}} -> {:error, {:http, status}}
       {:error, reason} -> {:error, reason}
