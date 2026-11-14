@@ -8,9 +8,13 @@ defmodule Polticool.Research do
     * `start(name_or_id, opts \\\\ [])` returns `{:ok, run_id}`,
       `{:ambiguous, [candidate_map]}` or `{:error, reason}`. `name_or_id` is a
       candidate id (integer or digit string), an `le_code` (e.g. `"THURSNK"`) or a
-      name fragment. Candidates are `%{id, name, party, office, district, le_code}`;
-      when several match, nothing runs and the UI shows a picker, then calls
-      `start(candidate.id)`.
+      name fragment. A name or code is looked up in the candidates table and in the
+      le.utah.gov roster snapshot (`Polticool.Legislators.search/2`), so any sitting
+      legislator can be researched; a lone roster match gets a candidate row (with no
+      race_key, so it stays off the ballot). Matches are
+      `%{id, name, party, office, district, le_code}`; when several match, nothing
+      runs and the UI shows a picker, then calls `start(match.id || match.le_code)`
+      (roster-only matches have `id: nil`).
     * `subscribe(run_id)` / `topic(run_id)`. `start/2` already subscribes the calling
       process before the work begins (so no message is missed). Pass `subscribe: false`
       to opt out.
@@ -81,7 +85,7 @@ defmodule Polticool.Research do
     with {:ok, resolved} <- resolve(input) do
       case resolved do
         {:many, list} ->
-          {:ambiguous, Enum.map(list, &candidate_map/1)}
+          {:ambiguous, list}
 
         {:one, target} ->
           run_id = Ecto.UUID.generate()
@@ -121,13 +125,59 @@ defmodule Polticool.Research do
               order_by: c.id
           )
 
-        case found do
-          [one] -> {:ok, {:one, one}}
-          [_ | _] = many -> {:ok, {:many, many}}
-          [] -> from_cache_or_missing(input)
+        # The roster covers every sitting legislator, not just ones already loaded
+        # as candidates; skip members a found candidate already represents.
+        known = MapSet.new(found, & &1.le_code)
+        roster = Enum.reject(Legislators.search(input), &MapSet.member?(known, &1.code))
+
+        case {found, roster} do
+          {[one], []} ->
+            {:ok, {:one, one}}
+
+          {[], [member]} ->
+            {:ok, {:one, candidate_for(member)}}
+
+          {[], []} ->
+            from_cache_or_missing(input)
+
+          _ ->
+            {:ok, {:many, Enum.map(found, &candidate_map/1) ++ Enum.map(roster, &member_map/1)}}
         end
     end
   end
+
+  # A researched legislator needs a candidate row for its pledges and receipts.
+  # It gets no race_key, so it stays off the ballot (see Ballot.list_races/1).
+  defp candidate_for(member) do
+    Repo.get_by(Candidate, le_code: member.code) ||
+      %Candidate{}
+      |> Candidate.changeset(%{
+        name: member.name,
+        party: member.party,
+        office: chamber_office(member.house),
+        district: member.district,
+        le_code: member.code,
+        incumbent: true
+      })
+      |> Repo.insert!()
+  end
+
+  # Picker entry for a roster member with no candidate row yet: picked by its
+  # legislator code, which resolves to exactly one member.
+  defp member_map(member) do
+    %{
+      id: nil,
+      name: member.name,
+      party: member.party,
+      office: chamber_office(member.house),
+      district: member.district,
+      le_code: member.code
+    }
+  end
+
+  defp chamber_office("H"), do: "Utah House"
+  defp chamber_office("S"), do: "Utah Senate"
+  defp chamber_office(_), do: nil
 
   defp by_id(id) do
     case Repo.get(Candidate, id) do

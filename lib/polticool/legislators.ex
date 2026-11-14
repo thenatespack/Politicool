@@ -66,6 +66,57 @@ defmodule Polticool.Legislators do
   end
 
   @doc """
+  Members of the committed roster snapshot as
+  `%{code, name, full_name, house, district, party}` (`name` reads "First Last").
+  Read from disk, so looking a legislator up never waits on le.utah.gov.
+  """
+  def snapshot_members do
+    with {:ok, text} <- File.read(snapshot_path()),
+         {:ok, %{"legislators" => list}} when is_list(list) <- Jason.decode(text) do
+      {:ok,
+       for %{"id" => id, "fullName" => full} = m <- list, is_binary(id) and is_binary(full) do
+         %{
+           code: id,
+           name: m["formatName"] || full,
+           full_name: full,
+           house: m["house"],
+           district: m["district"],
+           party: m["party"]
+         }
+       end}
+    else
+      {:error, reason} -> {:error, reason}
+      _ -> {:error, :invalid_json}
+    end
+  end
+
+  @doc """
+  Snapshot members matching `query`: its legislator code exactly (`"WHYTESL"`), or
+  every word of it starting a word of the member's name (`"Whyte"`, `"Stephen
+  Whyte"`, `"Steph"`). Sorted by name, at most `limit`.
+  """
+  def search(query, limit \\ 12) when is_binary(query) do
+    code = query |> String.trim() |> String.upcase()
+    wanted = words(query)
+
+    with [_ | _] <- wanted, {:ok, members} <- snapshot_members() do
+      members
+      |> Enum.filter(fn m ->
+        have = words(m.name) ++ words(m.full_name)
+
+        m.code == code or
+          Enum.all?(wanted, fn w -> Enum.any?(have, &String.starts_with?(&1, w)) end)
+      end)
+      |> Enum.sort_by(& &1.name)
+      |> Enum.take(limit)
+    else
+      _ -> []
+    end
+  end
+
+  defp words(s), do: s |> String.downcase() |> String.split(~r/[^a-z]+/, trim: true)
+
+  @doc """
   Looks up a member by chamber and district number (`"H"`, `"62"`), returning
   `{code, last_name_key}` or `nil`.
   """

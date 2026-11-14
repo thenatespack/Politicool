@@ -167,10 +167,10 @@ defmodule PolticoolWeb.ResearchLive do
         <ul class="divide-y divide-rule-soft overflow-hidden rounded-[10px] border border-rule bg-surface">
           <li :for={c <- @candidates}>
             <button
-              id={"pick-#{c.id}"}
+              id={"pick-#{c.id || c.le_code}"}
               type="button"
               phx-click="pick"
-              phx-value-id={c.id}
+              phx-value-id={c.id || c.le_code}
               class="w-full px-3 py-2.5 text-left text-[13.5px] transition-colors hover:bg-accent-tint focus-visible:bg-accent-tint"
             >
               <span class="font-semibold">{c.name}</span>
