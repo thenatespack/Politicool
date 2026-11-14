@@ -42,7 +42,7 @@ defmodule Polticool.Ballot do
   end
 
   @doc """
-  Computes `%{promised, proposed, voted, grade, bars_used}`. Bars are 0..100
+  Computes `%{promised, proposed, voted, score, grade, bars_used}`. Bars are 0..100
   or nil when there is no record; missing bars have their weight redistributed.
   """
   def scorecard(%Candidate{} = candidate) do
@@ -64,17 +64,19 @@ defmodule Polticool.Ballot do
     bars = %{promised: promised, proposed: proposed, voted: voted}
     used = for {k, v} <- bars, v != nil, do: k
 
-    grade =
+    score =
       case used do
         [] ->
           nil
 
         _ ->
           total = Enum.sum(for k <- used, do: @weights[k])
-          letter(Enum.sum(for k <- used, do: bars[k] * @weights[k] / total))
+          Enum.sum(for k <- used, do: bars[k] * @weights[k] / total)
       end
 
-    Map.merge(bars, %{grade: grade, bars_used: length(used)})
+    grade = score && letter(score)
+
+    Map.merge(bars, %{grade: grade, score: score, bars_used: length(used)})
   end
 
   defp voted_bar(receipts) do
