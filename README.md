@@ -68,6 +68,18 @@ Donors are normalized, tagged with `claude-haiku-5-5` from a fixed industry list
 | Data | Source | Files |
 | --- | --- | --- |
 | Bills, votes, legislator roster | Utah State Legislature, [le.utah.gov](https://le.utah.gov) (e.g. [`legislators.json`](https://le.utah.gov/data/legislators.json)) | ingested live, see above |
+| Roll calls, per-member vote positions (and bills) | LegiScan API by LegiScan LLC, [CC BY 4.0](https://legiscan.com/legiscan) | `mix polticool.import_legiscan`, see below |
 | Campaign finance (candidate committees) | Utah Lt. Governor's Office, [disclosures.utah.gov](https://disclosures.utah.gov/Search/AdvancedSearch) | `priv/data/PCC-2020.csv` … `PCC-2026.csv` |
+
+**LegiScan import.** le.utah.gov rate-limits scraping, so roll calls come from LegiScan's weekly datasets. Put `LEGISCAN_API_KEY` in `.env` (free tier: 10,000 queries/month) and run:
+
+```
+set -a; source .env; set +a
+mix polticool.import_legiscan                          # 2026GS and 2025GS
+mix polticool.import_legiscan --session 2026GS --force # one session, ignore the stored hash
+mix polticool.import_legiscan --zip path/to/dataset.zip # manually downloaded dataset, no API calls
+```
+
+A run costs one `getDatasetList` query plus one `getDataset` per session whose dataset hash changed (hashes are stored in `legiscan_datasets`). Bills are upserted by session and number (`HB216` becomes `HB0216`), roll calls are matched to existing votes by bill, chamber and date, and positions are stored per `legislator_code`. LegiScan people are mapped by chamber and name through the le.utah.gov roster; add overrides to `priv/data/legiscan_people.json` (`people_id` to code). Unmapped voters abort the import and are listed. Data: LegiScan API by LegiScan LLC, CC BY 4.0 (https://legiscan.com/legiscan).
 
 **Campaign finance exports.** On disclosures.utah.gov Advanced Search, set Entity Type to *Candidates & Office Holders*, pick a Report Year, click **Find**, then click the year under **Download Data by Year**. Each file holds every candidate committee's filed transactions for that year: columns `FILED, PCC, REPORT, TRAN_ID, TRAN_TYPE, TRAN_DATE, TRAN_AMT, INKIND, LOAN, AMENDS, NAME, PURPOSE, ADDRESS1, ADDRESS2, CITY, STATE, ZIP, INKIND_COMMENTS`. `PCC` is the filing candidate ("Thurston, Norman", "Chappell, David"), `NAME` is the counterparty, and `TRAN_TYPE` marks contributions vs. expenditures. Downloaded 2026-11-14. The site sits behind bot protection, so download by hand in a browser. These are public records, republished unmodified.

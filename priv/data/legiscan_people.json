@@ -1,0 +1,4 @@
+{
+  "_comment": "Manual overrides: LegiScan people_id (string) -> le.utah.gov legislator code. Used when the roster lookup fails.",
+  "people": {}
+}

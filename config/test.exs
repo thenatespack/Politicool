@@ -44,6 +44,10 @@ config :polticool, Polticool.Anthropic,
   api_key: "test-key",
   req_options: [plug: {Req.Test, Polticool.Anthropic}, retry: false]
 
+config :polticool, Polticool.LegiScan,
+  api_key: "test-key",
+  req_options: [plug: {Req.Test, Polticool.LegiScan}, retry: false]
+
 config :polticool,
   research_mode: :live,
   research_replay_delay_ms: 0,

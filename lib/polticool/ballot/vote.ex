@@ -11,6 +11,7 @@ defmodule Polticool.Ballot.Vote do
     field :tally, :map, default: %{}
     field :date, :date
     field :url, :string
+    field :legiscan_roll_call_id, :integer
 
     belongs_to :bill, Polticool.Ballot.Bill
     has_many :positions, Polticool.Ballot.VotePosition
@@ -18,7 +19,7 @@ defmodule Polticool.Ballot.Vote do
     timestamps(type: :utc_datetime)
   end
 
-  @fields ~w(bill_id vote_id house kind action_code action tally date url)a
+  @fields ~w(bill_id vote_id house kind action_code action tally date url legiscan_roll_call_id)a
 
   def changeset(vote, attrs) do
     vote
