@@ -48,7 +48,7 @@ defmodule PolticoolWeb.IssuesLive do
           :for={c <- @categories}
           class={[
             "relative flex items-center gap-3 rounded-[12px] border-[1.5px] px-4 py-3.5 transition duration-150",
-            "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
+            "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent has-[button:active]:scale-[0.99]",
             if(c.id in @selected,
               do: "border-accent bg-accent-tint",
               else: "border-rule bg-surface hover:border-muted"

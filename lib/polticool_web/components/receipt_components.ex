@@ -95,7 +95,7 @@ defmodule PolticoolWeb.ReceiptComponents do
       aria-roledescription="receipt"
       aria-label={if @label, do: "Receipt: #{@label}", else: "Receipt"}
       class={[
-        "rounded-[18px] border border-rule bg-paper p-[22px] text-ink shadow-[0_20px_40px_-12px_rgba(28,27,25,0.35)] [perspective:1200px]",
+        "rounded-[18px] border border-rule bg-paper p-[22px] text-ink shadow-[0_20px_40px_-12px_rgba(28,27,25,0.35)] [perspective:1200px] motion-safe:animate-[fade-in_250ms_ease-out]",
         @class
       ]}
     >
@@ -423,7 +423,7 @@ defmodule PolticoolWeb.ReceiptComponents do
       href={@href}
       target="_blank"
       rel="noopener noreferrer"
-      class="underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
+      class="py-1 underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
     >
       {render_slot(@inner_block)}<span aria-hidden="true"> ↗</span><span class="sr-only"> (opens in a new tab)</span>
     </a>

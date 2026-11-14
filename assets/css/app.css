@@ -126,6 +126,13 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Page transition on live navigation. Starts half visible so no frame is
+   ever blank (screenshots, slow devices, the demo recording). */
+@keyframes page-in {
+  from { opacity: 0.5; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 

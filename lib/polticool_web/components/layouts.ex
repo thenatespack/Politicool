@@ -69,7 +69,10 @@ defmodule PolticoolWeb.Layouts do
       </div>
     </header>
 
-    <main id="main" class="mx-auto w-full max-w-2xl px-[18px] pb-16 pt-6 sm:px-6 sm:pt-10">
+    <main
+      id="main"
+      class="mx-auto w-full max-w-2xl px-[18px] pb-16 pt-6 motion-safe:animate-[page-in_250ms_ease-out] sm:px-6 sm:pt-10"
+    >
       {render_slot(@inner_block)}
     </main>
 

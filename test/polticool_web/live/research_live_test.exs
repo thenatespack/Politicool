@@ -13,6 +13,21 @@ defmodule PolticoolWeb.ResearchLiveTest do
     assert has_element?(view, "input#research_name")
     assert has_element?(view, "#research-submit", "Research")
     refute has_element?(view, "#research-run")
+    assert has_element?(view, "#research-how")
+  end
+
+  test "shows a starting row until the first step, and hides the explainer", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/research")
+
+    send(
+      view.pid,
+      {:step, %{id: "find", label: "Finding legislator", detail: nil, status: :running}}
+    )
+
+    refute has_element?(view, "#research-how")
+    # The placeholder stays in the stream container; CSS (only:flex) hides it once steps exist.
+    assert has_element?(view, "#research-steps #steps-starting")
+    assert has_element?(view, "#research-steps #step-find")
   end
 
   test "asks for a name when the field is empty", %{conn: conn} do
