@@ -109,7 +109,8 @@ defmodule Polticool.MatchingTest do
     stub(input: input("advances", "high"))
 
     assert {:ok, %{receipts: [r], rejected: []}} = Matching.match_pledge(p, [bill])
-    assert r.outcome == :kept and r.confidence == :high and r.verified
+    assert r.outcome == :kept and r.confidence == :high
+    refute r.verified, "AI-matched receipts must not be marked human-verified"
     refute r.track_record
     assert r.vote_position == :yea and r.tally == "50-20-0"
     assert [%{"cited_text" => @provision, "start_char_index" => 10}] = r.citations
