@@ -12,6 +12,7 @@ defmodule Polticool.Application do
       Polticool.Repo,
       {DNSCluster, query: Application.get_env(:polticool, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Polticool.PubSub},
+      {Task.Supervisor, name: Polticool.Research.TaskSupervisor},
       # Start a worker by calling: Polticool.Worker.start_link(arg)
       # {Polticool.Worker, arg},
       # Start to serve requests, typically the last entry
