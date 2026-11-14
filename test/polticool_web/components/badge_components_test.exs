@@ -102,4 +102,37 @@ defmodule PolticoolWeb.BadgeComponentsTest do
       assert LazyHTML.text(badge) |> String.trim() == "Unofficial result"
     end
   end
+
+  describe "grade_tile/1" do
+    for {grade, ink} <- [
+          {"A", "text-white"},
+          {"C", "text-white"},
+          {"D", "text-ink"},
+          {"F", "text-ink"}
+        ] do
+      test "grade #{grade} is labelled and uses #{ink}" do
+        assigns = %{grade: unquote(grade)}
+
+        tile =
+          rendered_to_string(~H"<.grade_tile grade={@grade} />") |> query("[data-role=grade]")
+
+        assert LazyHTML.attribute(tile, "aria-label") == ["Grade #{unquote(grade)}"]
+        assert [class] = LazyHTML.attribute(tile, "class")
+        assert class =~ unquote(ink)
+      end
+    end
+
+    test "no grade renders a neutral, labelled dash" do
+      assigns = %{}
+      tile = rendered_to_string(~H"<.grade_tile grade={nil} />") |> query("[data-role=grade]")
+
+      assert LazyHTML.attribute(tile, "data-grade") == ["none"]
+      assert LazyHTML.attribute(tile, "aria-label") == ["Not graded"]
+    end
+
+    test "raises on an unknown grade" do
+      assigns = %{}
+      assert_raise ArgumentError, fn -> rendered_to_string(~H|<.grade_tile grade="E" />|) end
+    end
+  end
 end
