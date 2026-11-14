@@ -80,7 +80,8 @@ defmodule Polticool.Ballot do
   defp voted_bar(receipts) do
     graded =
       Enum.filter(receipts, fn r ->
-        r.vote_id && !r.track_record && r.outcome in [:kept, :partial, :broken]
+        r.vote_id && !r.track_record && r.confidence == :high &&
+          r.outcome in [:kept, :partial, :broken]
       end)
 
     weight = fn r -> if r.trap, do: 0.5, else: 1.0 end
