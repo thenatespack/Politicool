@@ -1,0 +1,116 @@
+<Layouts.app flash={@flash} tag="Dev">
+  <div id="ui-kit" class="space-y-10">
+    <header>
+      <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+        UI kit · design tokens
+      </p>
+      <h1 class="mt-2 font-serif text-[30px] leading-[1.1] tracking-[-0.02em]">
+        Know your whole ballot.
+      </h1>
+      <p class="mt-2.5 text-[15px] text-muted">
+        Civic-editorial: serif headlines, paper and ink neutrals, one accent hue.
+        Darker means a better grade. Party colour appears only on the tiny R/D/U labels.
+      </p>
+    </header>
+
+    <section id="ui-neutrals">
+      <h2 class="border-t border-rule pt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
+        Neutrals
+      </h2>
+      <div class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+        <div
+          :for={
+            {name, hex, swatch} <- [
+              {"paper", "#f7f5f0", "bg-paper"},
+              {"surface", "#ffffff", "bg-surface"},
+              {"ink", "#1c1b19", "bg-ink"},
+              {"ink-soft", "#4a463f", "bg-ink-soft"},
+              {"muted", "#6b675f", "bg-muted"},
+              {"faint", "#726d65", "bg-faint"},
+              {"rule", "#ddd8cc", "bg-rule"},
+              {"rule-strong", "#b9b3a6", "bg-rule-strong"},
+              {"track", "#e7e3da", "bg-track"},
+              {"accent-tint", "#eef4f3", "bg-accent-tint"}
+            ]
+          }
+          class="overflow-hidden rounded-xl border border-rule bg-surface"
+        >
+          <div class={["h-12 border-b border-rule", swatch]} />
+          <div class="px-2.5 py-2">
+            <div class="text-[12.5px] font-semibold">{name}</div>
+            <div class="font-mono text-[11px] text-faint">{hex}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ui-grades">
+      <h2 class="border-t border-rule pt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
+        Accent · grade shades
+      </h2>
+      <div class="mt-3 flex flex-wrap gap-3">
+        <div
+          :for={
+            {grade, hex, tile} <- [
+              {"A", "#1f5c5a", "bg-grade-a text-white"},
+              {"B", "#2a6b68", "bg-grade-b text-white"},
+              {"C", "#3f7f7c", "bg-grade-c text-white"},
+              {"D", "#6f9f9c", "bg-grade-d text-ink"},
+              {"F", "#cfe0de", "bg-grade-f text-ink"}
+            ]
+          }
+          class="text-center"
+        >
+          <div class={[
+            "grid size-[46px] place-items-center rounded-[10px] font-serif text-2xl font-bold shadow-sm motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-0.5",
+            tile
+          ]}>
+            {grade}
+          </div>
+          <div class="mt-1 font-mono text-[10.5px] text-faint">{hex}</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ui-type">
+      <h2 class="border-t border-rule pt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
+        Type
+      </h2>
+      <div class="mt-3 space-y-3 rounded-xl border border-rule bg-surface p-4">
+        <p class="font-serif text-[24px] leading-tight tracking-[-0.01em]">
+          House District 62 <span class="text-[13px] text-faint">serif · Georgia</span>
+        </p>
+        <blockquote class="border-l-[3px] border-accent pl-3.5 font-serif text-[20px] leading-snug">
+          "A verbatim quote, set in the serif."
+        </blockquote>
+        <p class="text-[15px]">
+          UI text uses the system sans. <span class="text-muted">Muted meta</span>
+          · <span class="text-faint">faint fine print</span>
+        </p>
+      </div>
+    </section>
+
+    <section id="ui-badges">
+      <h2 class="border-t border-rule pt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
+        Badges
+      </h2>
+      <div class="mt-3 space-y-4 rounded-xl border border-rule bg-surface p-4">
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-[15px]">
+          <span>Candidate A <.party_label party="R" /></span>
+          <span>Candidate B <.party_label party="D" /></span>
+          <span>Candidate C <.party_label party="U" /></span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <.outcome_badge :for={o <- ~w(kept partial broken untested absent)a} outcome={o} />
+        </div>
+        <div>
+          <.unofficial_badge />
+        </div>
+      </div>
+    </section>
+
+    <p class="text-center text-[11.5px] text-faint">
+      Dev only · tokens live in assets/css/app.css · badges in PolticoolWeb.BadgeComponents
+    </p>
+  </div>
+</Layouts.app>

@@ -40,5 +40,12 @@ defmodule PolticoolWeb.Router do
       live_dashboard "/dashboard", metrics: PolticoolWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+
+    # Design tokens + shared components, rendered in the real app shell
+    scope "/dev", PolticoolWeb do
+      pipe_through :browser
+
+      get "/ui", PageController, :ui
+    end
   end
 end
