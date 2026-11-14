@@ -195,6 +195,53 @@ defmodule PolticoolWeb.BadgeComponents do
   defp unofficial_label(canvass), do: "Unofficial result · canvass #{canvass}"
 
   @doc """
+  Letter-grade tile. A–C take white text and D/F take ink (white on D fails
+  contrast). No grade renders a dashed neutral "—" so it never reads as a
+  grade in the accent hue.
+
+  ## Examples
+
+      <.grade_tile grade="B" />
+      <.grade_tile grade={@scorecard.grade} size={:md} />
+  """
+  attr :grade, :string, default: nil, doc: ~s("A", "B", "C", "D", "F" or nil)
+  attr :size, :atom, default: :sm, values: [:sm, :md, :lg]
+  attr :class, :any, default: nil
+  attr :rest, :global
+
+  def grade_tile(assigns) do
+    ~H"""
+    <span
+      data-role="grade"
+      data-grade={@grade || "none"}
+      role="img"
+      aria-label={if @grade, do: "Grade #{@grade}", else: "Not graded"}
+      class={[
+        "grid shrink-0 place-items-center font-serif font-bold leading-none",
+        @size == :sm && "size-[34px] rounded-[8px] text-[17px]",
+        @size == :md && "size-[46px] rounded-[10px] text-[24px]",
+        @size == :lg && "size-16 rounded-[14px] text-[34px]",
+        grade_classes(@grade),
+        @class
+      ]}
+      {@rest}
+    >
+      <span aria-hidden="true">{@grade || "—"}</span>
+    </span>
+    """
+  end
+
+  defp grade_classes("A"), do: "bg-grade-a text-white"
+  defp grade_classes("B"), do: "bg-grade-b text-white"
+  defp grade_classes("C"), do: "bg-grade-c text-white"
+  defp grade_classes("D"), do: "bg-grade-d text-ink"
+  defp grade_classes("F"), do: "bg-grade-f text-ink"
+  defp grade_classes(nil), do: "border border-dashed border-rule-strong bg-surface text-muted"
+
+  defp grade_classes(other),
+    do: raise(ArgumentError, "unknown grade #{inspect(other)}; expected A, B, C, D, F or nil")
+
+  @doc """
   "Secondary source" badge for pledges taken from news coverage, which are
   only ever shown as verbatim quotes.
   """

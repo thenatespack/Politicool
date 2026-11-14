@@ -17,7 +17,8 @@ defmodule PolticoolWeb.Router do
   scope "/", PolticoolWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", IssuesLive
+    live "/ballot", BallotLive
   end
 
   # Other scopes may use custom stacks.
