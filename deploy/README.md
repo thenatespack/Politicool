@@ -3,7 +3,7 @@
 Every push to `main` runs `.github/workflows/deploy.yml`:
 
 1. **test**: compile with warnings as errors, check formatting, run `mix test` against Postgres
-2. **build**: build the release image from `Dockerfile` and push it to `ghcr.io/thenatespack/polticool:{sha,latest}`
+2. **build**: build the release image from `Dockerfile` and push it to `ghcr.io/thenatespack/politicool:{sha,latest}` (the repo was renamed from `polticool`; the old image's `:latest` is frozen and stale)
 3. **deploy**: SSH to the server, copy `docker-compose.yml`, `docker compose pull`, run `bin/migrate`, `up -d`, then smoke-test
 
 ```
@@ -47,7 +47,14 @@ docker compose exec app bin/polticool remote   # IEx into the running node
 docker compose ps
 ```
 
-Roll back to an earlier build:
+**Which image do manual commands use?** The deploy job writes `APP_IMAGE` and `APP_TAG`
+(the deployed SHA) into `/opt/polticool/.env`, which compose reads for interpolation. So after
+a deploy, plain `sudo docker compose up -d` / `exec` / `run` use the deployed build; no
+`env APP_IMAGE=... APP_TAG=...` prefix is needed. Those two lines are managed by the deploy
+job; don't edit them by hand. They also appear in the app container's env (harmless).
+The compose default image is `ghcr.io/thenatespack/politicool`.
+
+Roll back to an earlier build (shell env overrides `.env`; the next deploy rewrites `.env`):
 
 ```sh
 APP_TAG=<older-sha> docker compose up -d app
