@@ -41,6 +41,19 @@ defmodule PolticoolWeb.IssueCategories do
 
   @ids Enum.map(@categories, & &1.id)
 
+  # Donor industries (Polticool.Money.industries/0) related to each group, for
+  # the receipt donor tag. Deliberately narrow: only industries with a direct
+  # stake in the issue. Shown as a fact, never as a cause.
+  @related_industries %{
+    "housing" => ["Real Estate & Construction", "Finance & Insurance"],
+    "water" => ["Energy & Mining", "Agriculture"],
+    "education" => ["Education"],
+    "growth" => ["Transportation", "Healthcare"]
+  }
+
+  @doc "Donor industries related to a group id (empty for unknown ids)."
+  def related_industries(id), do: Map.get(@related_industries, id, [])
+
   @doc "All four groups, in display order."
   def all, do: @categories
 

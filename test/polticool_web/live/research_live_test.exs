@@ -82,9 +82,12 @@ defmodule PolticoolWeb.ResearchLiveTest do
          grade: "B",
          absence_rate: 0.11,
          receipts_count: 9,
-         pledges_count: 4
+         pledges_count: 4,
+         industries: [%{industry: "Healthcare", total: 1000.0, share: 0.5}]
        }}
     )
+
+    assert has_element?(view, "#research-done #research-money li[data-industry=Healthcare]")
 
     assert has_element?(view, "#research-done [data-role=grade][data-grade=B]")
     assert has_element?(view, "#research-done [data-bar=proposed][data-value=none]")

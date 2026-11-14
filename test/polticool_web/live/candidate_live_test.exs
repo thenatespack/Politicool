@@ -104,4 +104,33 @@ defmodule PolticoolWeb.CandidateLiveTest do
     {:ok, view, _html} = live(conn, ~p"/ballot")
     assert has_element?(view, "#race-hd62 a[href='/candidates/#{t.id}']", t.name)
   end
+
+  describe "money trail" do
+    test "is left out when there are no contributions", %{conn: conn, thurston: t} do
+      {:ok, view, _html} = live(conn, ~p"/candidates/#{t.id}")
+
+      refute has_element?(view, "#money")
+      refute has_element?(view, "[data-role=donor-tag]")
+    end
+
+    test "shows top industries and tags receipts on related issues", %{conn: conn, thurston: t} do
+      for {industry, cents, i} <- [{"Energy & Mining", 500_000, 1}, {"Legal", 100_000, 2}] do
+        Repo.insert!(%Polticool.Money.Contribution{
+          candidate_id: t.id,
+          donor_name: "Donor #{i}",
+          normalized_donor: "donor #{i}",
+          amount_cents: cents,
+          industry: industry
+        })
+      end
+
+      {:ok, view, _html} = live(conn, ~p"/candidates/#{t.id}")
+
+      assert has_element?(view, "#money #money-bar li[data-industry='Energy & Mining']", "83%")
+      assert has_element?(view, "#money-bar", "facts only, no implied cause")
+      # Water receipts get the tag (Energy & Mining is related); education ones don't.
+      assert has_element?(view, "#issue-group-water [data-role=donor-tag]", "Energy & Mining")
+      refute has_element?(view, "#issue-group-education [data-role=donor-tag]")
+    end
+  end
 end

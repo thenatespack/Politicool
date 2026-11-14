@@ -15,7 +15,7 @@ defmodule PolticoolWeb.ResearchLive do
 
   alias Polticool.Research
 
-  import PolticoolWeb.ScoreComponents
+  import PolticoolWeb.{MoneyComponents, ScoreComponents}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -120,7 +120,8 @@ defmodule PolticoolWeb.ResearchLive do
       grade: Map.get(card, :grade),
       receipts: Map.get(card, :receipts_count, 0),
       pledges: Map.get(card, :pledges_count, 0),
-      absence_rate: Map.get(card, :absence_rate)
+      absence_rate: Map.get(card, :absence_rate),
+      industries: Map.get(card, :industries) || []
     }
   end
 
@@ -284,6 +285,12 @@ defmodule PolticoolWeb.ResearchLive do
               <dd class="order-first font-serif text-[18px]">{percent(@scorecard.absence_rate)}</dd>
             </div>
           </dl>
+          <.money_bar
+            :if={@scorecard.industries != []}
+            id="research-money"
+            industries={@scorecard.industries}
+            class="mt-3"
+          />
         </div>
 
         <p class="mt-3 text-center text-[11px] text-faint">
