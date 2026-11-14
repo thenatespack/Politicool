@@ -9,7 +9,7 @@ defmodule PolticoolWeb.BallotLive do
   use PolticoolWeb, :live_view
 
   alias Polticool.{Ballot, Legislature}
-  alias PolticoolWeb.IssueCategories
+  alias PolticoolWeb.{IssueCategories, Races}
 
   # Ballot measures shown in the Amendments section, read from their bills.
   @amendments [%{key: "amendment-a", name: "Amendment A", session: "2025GS", number: "HJR010"}]
@@ -100,7 +100,7 @@ defmodule PolticoolWeb.BallotLive do
               </h3>
               <.link
                 id={"compare-#{race.key}"}
-                href={race.compare_path}
+                navigate={race.compare_path}
                 aria-describedby={"#{dom_id}-title"}
                 class="group shrink-0 text-[12.5px] font-semibold text-accent"
               >
@@ -204,9 +204,8 @@ defmodule PolticoolWeb.BallotLive do
   defp race_card(race, slugs, selected) do
     %{
       key: race.key,
-      title: race_title(race),
-      # TODO(916): switch to ~p once CompareLive's route exists.
-      compare_path: "/races/#{race.key}/compare",
+      title: Races.title(race),
+      compare_path: ~p"/races/#{race.key}/compare?#{IssueCategories.to_params(selected)}",
       unofficial?: Enum.any?(race.candidates, &((&1.result_status || "") =~ "unofficial")),
       candidates: Enum.map(race.candidates, &candidate_row(&1, slugs, selected))
     }
@@ -270,16 +269,6 @@ defmodule PolticoolWeb.BallotLive do
       %{key: a.key, name: a.name, summary: bill.provisions}
     end
   end
-
-  defp race_title(%{office: office, district: district}) when is_binary(district) do
-    cond do
-      (office || "") =~ "House" -> "House District #{district}"
-      (office || "") =~ "Senate" -> "Senate District #{district}"
-      true -> "#{office} · #{district}"
-    end
-  end
-
-  defp race_title(race), do: race.office || race.key
 
   defp plural(1, word), do: word
   defp plural(_, word), do: word <> "s"

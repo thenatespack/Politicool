@@ -516,13 +516,22 @@ defmodule PolticoolWeb.ReceiptComponents do
 
   defp bill_page_url(nil), do: nil
 
+  # Prefer the stored page URL; ingest stores the JSON API URL, so build the
+  # public page for General Session bills in that case.
   defp bill_page_url(bill) do
+    case safe_url(bill.url) do
+      nil -> built_bill_url(bill)
+      url -> if String.ends_with?(url, ".json"), do: built_bill_url(bill) || url, else: url
+    end
+  end
+
+  defp built_bill_url(bill) do
     case Regex.run(~r/^(\d{4})GS$/, bill.session || "") do
       [_, year] when is_binary(bill.number) ->
         "https://le.utah.gov/~#{year}/bills/static/#{bill.number}.html"
 
       _ ->
-        safe_url(bill.url)
+        nil
     end
   end
 
