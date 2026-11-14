@@ -150,6 +150,11 @@ defmodule Polticool.Research do
          {:ok, bin} <- File.read(cache_path(code)) do
       delay = Application.get_env(:polticool, :research_replay_delay_ms, 700)
 
+      # `:safe` only accepts atoms that already exist. Dev and test load modules
+      # lazily, so a cached scorecard's atoms (e.g. Scoring's :absence_rate) can be
+      # missing and the replay fails. Releases preload modules; do the same here.
+      for mod <- Application.spec(:polticool, :modules) || [], do: Code.ensure_loaded(mod)
+
       for msg <- :erlang.binary_to_term(bin, [:safe]) do
         if delay > 0, do: Process.sleep(delay)
         broadcast(run_id, msg)

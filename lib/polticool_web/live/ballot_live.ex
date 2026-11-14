@@ -176,6 +176,15 @@ defmodule PolticoolWeb.BallotLive do
           </article>
         </div>
       </.ballot_section>
+
+      <.link
+        id="research-link"
+        navigate={~p"/research"}
+        class="group mt-6 flex items-center justify-between gap-3 rounded-[12px] border border-dashed border-rule-strong px-3.5 py-3 text-[13.5px] text-ink-soft transition-colors hover:border-accent hover:text-accent"
+      >
+        Not on your ballot? Research any legislator
+        <span aria-hidden="true" class="transition-transform group-hover:translate-x-0.5">→</span>
+      </.link>
     </Layouts.app>
     """
   end

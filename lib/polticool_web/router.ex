@@ -20,6 +20,7 @@ defmodule PolticoolWeb.Router do
     live "/", IssuesLive
     live "/ballot", BallotLive
     live "/races/:key/compare", CompareLive
+    live "/research", ResearchLive
   end
 
   # Other scopes may use custom stacks.
