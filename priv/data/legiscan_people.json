@@ -1,4 +1,6 @@
 {
-  "_comment": "Manual overrides: LegiScan people_id (string) -> le.utah.gov legislator code. Used when the roster lookup fails.",
-  "people": {}
+  "_comment": "Manual overrides: LegiScan people_id (string) -> le.utah.gov legislator code. Used when the roster lookup fails. Former members no longer on the current roster (e.g. Gwynn HD-6, Burton HD-64, Clancy HD-60) are intentionally left unmapped; their codes are not in the snapshot and are not guessed.",
+  "people": {
+    "21104": "BALLAMG"
+  }
 }
