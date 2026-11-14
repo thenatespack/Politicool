@@ -60,6 +60,41 @@ defmodule Polticool.MoneyTest do
     assert length(Money.top_industries(c, 1)) == 1
   end
 
+  describe "real PCC export format" do
+    @pcc File.read!("test/support/fixtures/pcc_export.csv")
+
+    test "parse_csv/2 keeps one filer's contributions only" do
+      rows = Money.parse_csv(@pcc, filer: "Doe, Jane")
+      ids = rows |> Enum.map(& &1.external_id) |> Enum.sort()
+      # drops: expenditure 1005, loan 1006, other filer 2001, amended-away 1003
+      assert ids == ~w(1001 1002 1004 1007 1008)
+      assert Enum.find(rows, &(&1.external_id == "1004")).amount_cents == -10_000
+      assert Enum.find(rows, &(&1.external_id == "1001")).date == ~D[2026-01-11]
+      assert Money.parse_csv(@pcc, filer: "Roe, Rick") |> length() == 1
+    end
+
+    test "filer_name/1 derives Last, First" do
+      assert Money.filer_name(%Candidate{name: "Norman K. Thurston"}) == "Thurston, Norman"
+    end
+
+    test "import is idempotent and nets refunds" do
+      stub_tags()
+      {:ok, c} = %Candidate{} |> Candidate.changeset(%{name: "Jane Doe"}) |> Repo.insert()
+      opts = [source_url: "test://pcc", filer: Money.filer_name(c)]
+
+      assert {:ok, 5} = Money.import_csv(c, @pcc, opts)
+      assert {:ok, 5} = Money.import_csv(c, @pcc, opts)
+      # a second file under the same source must not wipe the first
+      assert {:ok, 1} = Money.import_csv(c, @pcc, Keyword.put(opts, :filer, "Roe, Rick"))
+
+      assert %{count: 6, cents: 1_189_900} = Money.total_cents(c)
+
+      tops = Money.top_industries(c, 5)
+      assert Enum.find(tops, &(&1.industry == "Real Estate & Construction")).total == 1200.0
+      assert Enum.find(tops, &(&1.industry == "Healthcare")).total == 400.0
+    end
+  end
+
   test "import_json fallback goes through the same pipeline" do
     stub_tags()
     {:ok, c} = %Candidate{} |> Candidate.changeset(%{name: "Fallback"}) |> Repo.insert()

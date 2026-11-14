@@ -55,7 +55,19 @@ which lowers the Promised bar in `Polticool.Ballot.scorecard/1`. See `Polticool.
 
 Campaign contributions per candidate, grouped by industry. Facts only: the data states who gave what, never that a donation influenced a vote.
 
-    mix polticool.import_money --candidate Thurston path/to/export.csv
+    mix polticool.import_money --candidate Thurston "priv/data/PCC-202[56].csv"   # 2025 + 2026 exports
+    mix polticool.import_money --candidate Chappell "priv/data/PCC-202[56].csv"
     mix polticool.import_money --candidate Chappell priv/data/money_fallback.json  # hand-entered fallback
 
-Donors are normalized, tagged with `claude-haiku-5-5` from a fixed industry list (`ANTHROPIC_API_KEY` required), and stored in `contributions`. `Polticool.Money.top_industries(candidate, 5)` returns `[%{industry, total, share}]`. The column format of the disclosures.utah.gov "Download Data by Year" CSV export is assumed (header-alias matching, documented in `Polticool.Money`). `priv/data/money_fallback.sample.json` is a SAMPLE template for hand-entered donors.
+Only the candidate's own `Contribution` rows are kept. The filer is derived from the candidate name ("Norman K. Thurston" → "Thurston, Norman"); override it with `--filer`. In-kind gifts count, loans are dropped, refunds stay negative, and rows superseded by an amendment are dropped. Re-imports upsert on `TRAN_ID`, so re-running with `ANTHROPIC_API_KEY` set fills in industry tags.
+
+Donors are normalized, tagged with `claude-haiku-5-5` from a fixed industry list (`ANTHROPIC_API_KEY` required), and stored in `contributions`. `Polticool.Money.top_industries(candidate, 5)` returns `[%{industry, total, share}]`. Columns are matched by header alias (see `Polticool.Money`). `priv/data/money_fallback.sample.json` is a SAMPLE template for hand-entered donors.
+
+## Open data sources
+
+| Data | Source | Files |
+| --- | --- | --- |
+| Bills, votes, legislator roster | Utah State Legislature, [le.utah.gov](https://le.utah.gov) (e.g. [`legislators.json`](https://le.utah.gov/data/legislators.json)) | ingested live, see above |
+| Campaign finance (candidate committees) | Utah Lt. Governor's Office, [disclosures.utah.gov](https://disclosures.utah.gov/Search/AdvancedSearch) | `priv/data/PCC-2020.csv` … `PCC-2026.csv` |
+
+**Campaign finance exports.** On disclosures.utah.gov Advanced Search, set Entity Type to *Candidates & Office Holders*, pick a Report Year, click **Find**, then click the year under **Download Data by Year**. Each file holds every candidate committee's filed transactions for that year: columns `FILED, PCC, REPORT, TRAN_ID, TRAN_TYPE, TRAN_DATE, TRAN_AMT, INKIND, LOAN, AMENDS, NAME, PURPOSE, ADDRESS1, ADDRESS2, CITY, STATE, ZIP, INKIND_COMMENTS`. `PCC` is the filing candidate ("Thurston, Norman", "Chappell, David"), `NAME` is the counterparty, and `TRAN_TYPE` marks contributions vs. expenditures. Downloaded 2026-11-14. The site sits behind bot protection, so download by hand in a browser. These are public records, republished unmodified.
