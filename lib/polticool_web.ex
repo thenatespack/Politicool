@@ -86,6 +86,8 @@ defmodule PolticoolWeb do
       import Phoenix.HTML
       # Core UI components
       import PolticoolWeb.CoreComponents
+      # Civic-editorial badges (party labels, outcomes, unofficial result)
+      import PolticoolWeb.BadgeComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
