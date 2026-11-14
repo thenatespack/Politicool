@@ -50,12 +50,54 @@ defmodule PolticoolWeb.Briefings do
         {"House roll call", @hjr10_vote_url},
         {"2026 Voter Information Pamphlet", "https://vote.utah.gov"}
       ]
+    },
+    %{
+      slug: "b",
+      name: "Amendment B",
+      bill: "S.J.R. 2 · 2025 General Session",
+      summary: "Require 60% of the vote for citizen initiatives that raise taxes.",
+      yes_means:
+        "Citizen initiatives that create a new tax, expand a tax or raise a tax rate need at " <>
+          "least 60% of the vote to pass.",
+      no_means: "Those initiatives keep passing with a simple majority.",
+      fiscal_impact: "Not entered yet · see the Voter Information Pamphlet",
+      legislature: "Senate 21-8-0 · House 55-17-3",
+      result: "Not entered yet",
+      # Votes come from the imported roll call (LegiScan), not hand entry.
+      rep_votes: %{session: "2025GS", number: "SJR002", house: "H"},
+      reps: [
+        %{name: "Jason E. Thompson", party: "R", district: "HD3", code: "THOMJA"},
+        %{name: "Norman K. Thurston", party: "R", district: "HD62", code: "THURSNK"}
+      ],
+      sources: [
+        {"le.utah.gov · S.J.R. 2", "https://le.utah.gov/~2025/bills/static/SJR002.html"},
+        {"2026 Proposed Constitutional Amendments",
+         "https://le.utah.gov/constitutionalAmendment/2026/constitutionalamendments.pdf"},
+        {"2026 Voter Information Pamphlet", "https://vote.utah.gov"}
+      ]
     }
   ]
 
   def judges, do: @judges
-  def amendments, do: @amendments
+  def amendments, do: Enum.map(@amendments, &resolve_rep_votes/1)
+
+  # Fill rep votes from the database roll call; "Not on record" when missing.
+  defp resolve_rep_votes(%{rep_votes: %{session: s, number: n, house: h}} = a) do
+    reps =
+      for r <- a.reps do
+        Map.put(r, :vote, vote_label(Polticool.Ballot.floor_position(s, n, h, r.code)))
+      end
+
+    %{a | reps: reps}
+  end
+
+  defp resolve_rep_votes(a), do: a
+
+  defp vote_label(:yea), do: "Yea"
+  defp vote_label(:nay), do: "Nay"
+  defp vote_label(:absent), do: "Absent"
+  defp vote_label(nil), do: "Not on record"
 
   def judge(slug), do: Enum.find(@judges, &(&1.slug == slug))
-  def amendment(slug), do: Enum.find(@amendments, &(&1.slug == slug))
+  def amendment(slug), do: Enum.find(amendments(), &(&1.slug == slug))
 end

@@ -24,7 +24,7 @@ defmodule Polticool.Seeds do
   @sample "SAMPLE (replace with verified data): "
   @hjr10_vote_url "https://le.utah.gov/DynaBill/svotes.jsp?sessionid=2025GS&voteid=852&house=H"
 
-  @doc "Seeds HD62, Pohlman and Amendment A. Returns a map of the key rows."
+  @doc "Seeds HD62, Pohlman and Amendments A and B. Returns a map of the key rows."
   def hd62! do
     {:ok, rows} = Repo.transact(fn -> {:ok, seed()} end)
     rows
@@ -70,6 +70,17 @@ defmodule Polticool.Seeds do
           "Publish proposed constitutional amendments online instead of in newspapers. " <>
             "House 70-0-5, Senate 29-0. Saves up to $1.4M every 2 years.",
         url: "https://le.utah.gov/~2025/bills/static/HJR010.html"
+      })
+
+    # Amendment B. Upsert only sets these fields, so LegiScan's roll calls on prod stay.
+    sjr2 =
+      upsert!(Bill, [session: "2025GS", number: "SJR002"], %{
+        title: "Amendment B (S.J.R. 2): 60% vote for tax-raising citizen initiatives",
+        provisions:
+          "Citizen initiatives that impose a new tax, expand a tax's base or raise a tax rate " <>
+            "would need at least 60% of the vote instead of a simple majority. " <>
+            "Senate 21-8-0, House 55-17-3.",
+        url: "https://le.utah.gov/~2025/bills/static/SJR002.html"
       })
 
     hjr10_vote =
@@ -175,6 +186,7 @@ defmodule Polticool.Seeds do
       chappell: chappell,
       pohlman: pohlman,
       amendment_a: hjr10,
+      amendment_b: sjr2,
       hjr10_vote: hjr10_vote
     }
   end
