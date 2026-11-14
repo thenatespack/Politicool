@@ -259,6 +259,14 @@ defmodule PolticoolWeb.ResearchLive do
             </div>
           </div>
           <.score_bars scorecard={@scorecard.bars} class="mt-3.5" />
+          <.link
+            :if={@scorecard.candidate[:id]}
+            id="research-scorecard-link"
+            navigate={~p"/candidates/#{@scorecard.candidate[:id]}"}
+            class="mt-3 inline-block text-[12.5px] font-semibold text-accent"
+          >
+            Open the full scorecard <span aria-hidden="true">→</span>
+          </.link>
           <p :if={@scorecard.grade && @scorecard.bars_used < 3} class="mt-2 text-[11px] text-faint">
             Graded on {@scorecard.bars_used} of 3 bars
           </p>
