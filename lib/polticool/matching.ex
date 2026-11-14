@@ -217,7 +217,9 @@ defmodule Polticool.Matching do
       confidence: fmt.confidence,
       rationale: fmt.rationale,
       citations: citations,
-      verified: true,
+      # `verified` means a person hand-checked the receipt (shown as "Human-verified").
+      # AI matches are citation-checked, not human-checked, so they start unverified.
+      verified: false,
       track_record: track_record,
       quote: quote,
       source_url: bill.url,
