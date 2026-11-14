@@ -1,0 +1,100 @@
+name: Release Demo
+
+# Records the phx_demo demo videos (test/**/demos/*_demo_test.exs) and attaches
+# them to the GitHub release for the tag. Manual runs upload them as a workflow
+# artifact only.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  record:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keep in sync with deploy.yml (the repo has no .tool-versions).
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.4"
+          otp-version: "29.1.1"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: assets/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-test-${{ runner.os }}-${{ hashFiles('mix.lock') }}
+          restore-keys: mix-test-${{ runner.os }}-
+
+      # Playwright browsers and the Piper venv + voice (phx_demo's user cache).
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/phx_demo
+          key: demo-tools-${{ runner.os }}-${{ hashFiles('assets/package-lock.json', 'mix.lock') }}
+
+      - run: mix deps.get
+      - run: npm --prefix assets ci
+      - run: npx --prefix assets playwright install --with-deps chromium
+      - run: mix phx_demo.piper.setup
+      - run: mix assets.setup
+      - run: mix assets.build
+      - run: mix ecto.create --quiet && mix ecto.migrate --quiet
+
+      - name: Record demos
+        run: mix demo.record --gif
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demos-${{ github.ref_name }}
+          path: |
+            tmp/demos/**/*.mp4
+            tmp/demos/**/*.gif
+            tmp/demos/**/*.srt
+            tmp/demos/**/*.vtt
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s globstar nullglob
+          files=(tmp/demos/**/*.mp4 tmp/demos/**/*.gif)
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber

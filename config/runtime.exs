@@ -24,8 +24,10 @@ if api_key = System.get_env("ANTHROPIC_API_KEY") do
   config :polticool, Polticool.Anthropic, api_key: api_key
 end
 
-config :polticool, PolticoolWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+if config_env() != :test do
+  config :polticool, PolticoolWeb.Endpoint,
+    http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+end
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.

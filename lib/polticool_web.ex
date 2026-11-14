@@ -52,6 +52,8 @@ defmodule PolticoolWeb do
     quote do
       use Phoenix.LiveView
 
+      on_mount PolticoolWeb.LiveAcceptance
+
       unquote(html_helpers())
     end
   end

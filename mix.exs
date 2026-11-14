@@ -27,7 +27,7 @@ defmodule Polticool.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, "demo.record": :test, "phx_demo.piper.setup": :test]
     ]
   end
 
@@ -40,12 +40,15 @@ defmodule Polticool.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:phoenix_test_playwright, "~> 0.19", only: :test, runtime: false},
+      {:phx_demo, "~> 0.1", only: [:test]},
       {:phoenix, "~> 1.8.15"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:igniter, "~> 0.8", only: [:dev, :test]},
       {:phoenix_live_view, "~> 1.2.0"},
       {:lazy_html, ">= 0.1.0"},
       {:phoenix_live_dashboard, "~> 0.8.3"},

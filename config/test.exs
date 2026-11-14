@@ -1,4 +1,5 @@
 import Config
+config :phoenix_test, otp_app: :polticool
 
 # Configure your database
 #
@@ -18,7 +19,7 @@ config :polticool, Polticool.Repo,
 config :polticool, PolticoolWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "lDEgNmtP5kGgTfQcpsyRBHa2zH2DClSYYrBLEPavjSK7WgPUV+SzMMMdS9FU0O32",
-  server: false
+  server: true
 
 # In test we don't send emails
 config :polticool, Polticool.Mailer, adapter: Swoosh.Adapters.Test
@@ -47,4 +48,5 @@ config :polticool, Polticool.Anthropic,
 config :polticool,
   research_mode: :live,
   research_replay_delay_ms: 0,
-  research_cache_dir: Path.expand("../test/fixtures/research_cache", __DIR__)
+  research_cache_dir: Path.expand("../test/fixtures/research_cache", __DIR__),
+  sql_sandbox: true
