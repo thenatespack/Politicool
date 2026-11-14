@@ -12,12 +12,13 @@ defmodule Polticool.Money.Contribution do
     field :industry, :string
     field :source_url, :string
     field :report_id, :string
+    field :external_id, :string
     field :retrieved_at, :utc_datetime
 
     timestamps(type: :utc_datetime)
   end
 
-  @fields ~w(candidate_id donor_name normalized_donor amount_cents date industry source_url report_id retrieved_at)a
+  @fields ~w(candidate_id donor_name normalized_donor amount_cents date industry source_url report_id external_id retrieved_at)a
 
   def changeset(contribution, attrs) do
     contribution

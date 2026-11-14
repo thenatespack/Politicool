@@ -1,0 +1,10 @@
+FILED,PCC,REPORT,TRAN_ID,TRAN_TYPE,TRAN_DATE,TRAN_AMT,INKIND,LOAN,AMENDS,NAME,PURPOSE,ADDRESS1,ADDRESS2,CITY,STATE,ZIP,INKIND_COMMENTS
+"X","Doe, Jane","Convention",1001,"Contribution","1/11/2026","1000","","","","Acme Homes, LLC","","1 Main","","Provo","UT",84601,""
+"X","Doe, Jane","Convention",1002,"Contribution","1/12/2026","500","","","","Utah Medical Group","","2 Main","","Provo","UT",84601,""
+"X","Doe, Jane","Primary",1003,"Contribution","2/01/2026","250","","","","Pat Smith","","3 Main","","Provo","UT",84601,""
+"X","Doe, Jane","Primary",1004,"Contribution","2/02/2026","-100","","","","Utah Medical Group","","2 Main","","Provo","UT",84601,"Refund"
+"X","Doe, Jane","Primary",1005,"Expenditure","2/03/2026","300","","","","Print Shop","Mailers","4 Main","","Provo","UT",84601,""
+"X","Doe, Jane","Primary",1006,"Contribution","2/04/2026","5000","","X","","Pat Smith","","3 Main","","Provo","UT",84601,"Loan"
+"X","Doe, Jane","Primary",1007,"Contribution","2/05/2026","200","X","","","Acme Homes, LLC","","1 Main","","Provo","UT",84601,"Signs"
+"X","Doe, Jane","Year End",1008,"Contribution","3/01/2026","300","","","1003","Pat Smith","","3 Main","","Provo","UT",84601,"Amended up"
+"X","Roe, Rick","Convention",2001,"Contribution","1/11/2026","9999","","","","Other Donor","","5 Main","","Provo","UT",84601,""

@@ -19,6 +19,22 @@ defmodule Polticool.Money do
     * amount: `Amount`, `Transaction Amount`
     * date: `Date`, `Transaction Date`, `Contribution Date`
     * report: `Report`, `Report ID`, `Report Name`
+    * external id: `TRAN_ID` (makes re-imports idempotent per candidate)
+    * filer: `PCC` ("Last, First"); type: `TRAN_TYPE`; also `INKIND`, `LOAN`, `AMENDS`
+
+  ## Real export (candidate committees, "Download Data by Year")
+
+  Header: `FILED,PCC,REPORT,TRAN_ID,TRAN_TYPE,TRAN_DATE,TRAN_AMT,INKIND,LOAN,AMENDS,NAME,...`.
+  Every file holds every Utah candidate, so pass `filer: "Thurston, Norman"`.
+  When a `TRAN_TYPE` column exists:
+
+    * only `Contribution` rows are kept (expenditures are dropped);
+    * in-kind contributions (`INKIND` = X) are kept: they are disclosed gifts;
+    * loans (`LOAN` = X) are dropped: a loan is repaid money, not a donation;
+    * negative amounts (refunds) are kept as negative cents, so donor and
+      industry totals are net of refunds;
+    * a row whose `TRAN_ID` is named in another row's `AMENDS` is superseded
+      and dropped.
 
   Dates may be `YYYY-MM-DD` or `M/D/YYYY`; amounts may include `$` and commas.
   If the real export differs, add aliases in `@aliases`.
@@ -50,9 +66,15 @@ defmodule Polticool.Money do
 
   @aliases %{
     donor: ~w(contributor contributorname contributor_name name donor donorname),
-    amount: ~w(amount transactionamount),
-    date: ~w(date transactiondate contributiondate),
-    report: ~w(report reportid reportname)
+    amount: ~w(amount transactionamount tran_amt),
+    date: ~w(date transactiondate contributiondate tran_date),
+    report: ~w(report reportid reportname),
+    external_id: ~w(tran_id),
+    filer: ~w(pcc),
+    type: ~w(tran_type),
+    inkind: ~w(inkind),
+    loan: ~w(loan),
+    amends: ~w(amends)
   }
 
   @batch_size 40
@@ -61,8 +83,15 @@ defmodule Polticool.Money do
 
   # ---- parsing ----
 
-  @doc "Parses CSV text into `[%{donor_name, amount_cents, date, report_id}]`."
-  def parse_csv(text) when is_binary(text) do
+  @doc """
+  Parses CSV text into `[%{donor_name, amount_cents, date, report_id, external_id}]`.
+
+  Option `:filer` keeps only rows whose `PCC` equals it (case-insensitive).
+  See the moduledoc for the contribution-only filtering of the real export.
+  """
+  def parse_csv(text, opts \\ []) when is_binary(text) do
+    filer = opts[:filer] && String.downcase(String.trim(opts[:filer]))
+
     case text |> String.trim_leading("﻿") |> csv_rows() do
       [] ->
         []
@@ -70,15 +99,45 @@ defmodule Polticool.Money do
       [header | rows] ->
         idx = column_index(header)
 
-        for row <- rows, donor = cell(row, idx.donor), donor != "" do
-          %{
-            donor_name: donor,
-            amount_cents: parse_amount(cell(row, idx.amount)),
-            date: parse_date(cell(row, idx.date)),
-            report_id: blank_nil(cell(row, idx.report))
-          }
-        end
-        |> Enum.reject(&is_nil(&1.amount_cents))
+        rows =
+          for row <- rows,
+              donor = cell(row, idx.donor),
+              donor != "",
+              keep_row?(row, idx, filer) do
+            %{
+              donor_name: donor,
+              amount_cents: parse_amount(cell(row, idx.amount)),
+              date: parse_date(cell(row, idx.date)),
+              report_id: blank_nil(cell(row, idx.report)),
+              external_id: blank_nil(cell(row, idx.external_id)),
+              amends: blank_nil(cell(row, idx.amends))
+            }
+          end
+          |> Enum.reject(&is_nil(&1.amount_cents))
+
+        superseded = for %{amends: a} <- rows, a, into: MapSet.new(), do: a
+
+        rows
+        |> Enum.reject(&(&1.external_id && &1.external_id in superseded))
+        |> Enum.map(&Map.delete(&1, :amends))
+    end
+  end
+
+  defp keep_row?(row, idx, filer) do
+    (is_nil(filer) or is_nil(idx.filer) or String.downcase(cell(row, idx.filer)) == filer) and
+      (is_nil(idx.type) or
+         (String.downcase(cell(row, idx.type)) == "contribution" and
+            String.upcase(cell(row, idx.loan)) != "X"))
+  end
+
+  @doc """
+  Guesses the export's `PCC` ("Last, First") from a candidate name:
+  "Norman K. Thurston" -> "Thurston, Norman".
+  """
+  def filer_name(%Candidate{name: name}) do
+    case String.split(name) do
+      [only] -> only
+      [first | rest] -> "#{List.last(rest)}, #{first}"
     end
   end
 
@@ -283,6 +342,7 @@ defmodule Polticool.Money do
           industry: Map.fetch!(tags, r.normalized_donor),
           source_url: source,
           report_id: r[:report_id],
+          external_id: r[:external_id],
           retrieved_at: now,
           inserted_at: now,
           updated_at: now
@@ -292,20 +352,34 @@ defmodule Polticool.Money do
     Repo.transaction(fn ->
       if source do
         Repo.delete_all(
-          from c in Contribution, where: c.candidate_id == ^cid and c.source_url == ^source
+          from c in Contribution,
+            where: c.candidate_id == ^cid and c.source_url == ^source and is_nil(c.external_id)
         )
       end
 
-      entries
-      |> Enum.chunk_every(500)
-      |> Enum.each(&Repo.insert_all(Contribution, &1))
+      # Rows with a TRAN_ID upsert on (candidate_id, external_id), so repeats within
+      # or across files update in place; rows without one are plain inserts.
+      {with_id, without_id} = Enum.split_with(entries, & &1.external_id)
+      with_id = Enum.uniq_by(with_id, & &1.external_id)
 
-      length(entries)
+      for chunk <- Enum.chunk_every(with_id, 500) do
+        Repo.insert_all(Contribution, chunk,
+          on_conflict:
+            {:replace,
+             ~w(donor_name normalized_donor amount_cents date industry source_url report_id retrieved_at updated_at)a},
+          conflict_target: [:candidate_id, :external_id]
+        )
+      end
+
+      without_id |> Enum.chunk_every(500) |> Enum.each(&Repo.insert_all(Contribution, &1))
+
+      length(with_id) + length(without_id)
     end)
   end
 
   @doc "Imports CSV text. See `import_rows/3`."
-  def import_csv(candidate, text, opts \\ []), do: import_rows(candidate, parse_csv(text), opts)
+  def import_csv(candidate, text, opts \\ []),
+    do: import_rows(candidate, parse_csv(text, Keyword.take(opts, [:filer])), opts)
 
   @doc """
   Loads hand-entered fallback donors from JSON:
@@ -329,6 +403,18 @@ defmodule Polticool.Money do
   end
 
   # ---- aggregation ----
+
+  @doc "Net `%{count, cents}` of all contributions stored for the candidate."
+  def total_cents(%Candidate{id: cid}) do
+    {count, cents} =
+      Repo.one(
+        from c in Contribution,
+          where: c.candidate_id == ^cid,
+          select: {count(c.id), coalesce(sum(c.amount_cents), 0)}
+      )
+
+    %{count: count, cents: Decimal.to_integer(Decimal.new(cents))}
+  end
 
   @doc """
   Top `n` industries by total contributed to the candidate.
