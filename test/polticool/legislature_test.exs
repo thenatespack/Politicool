@@ -51,6 +51,65 @@ defmodule Polticool.LegislatureTest do
     assert Enum.any?(bill.votes, fn v -> v.kind == :floor and v.url =~ "svotes.jsp" end)
   end
 
+  test "backfill_text fills text on an existing bill without touching votes or LegiScan ids" do
+    bill =
+      Polticool.Repo.insert!(%Polticool.Ballot.Bill{
+        session: "2026GS",
+        number: "HB0023",
+        title: "From LegiScan",
+        prime_sponsor: "LISONK",
+        legiscan_bill_id: 999
+      })
+
+    Req.Test.stub(Legislature, fn conn ->
+      Plug.Conn.send_resp(conn, 200, fixture("2026GS_HB0023.json"))
+    end)
+
+    assert {:ok, updated} = Legislature.backfill_text(bill, plug: {Req.Test, Legislature})
+    assert updated.provisions =~ "service animals"
+    assert length(updated.versions) == 2
+    assert updated.legiscan_bill_id == 999
+    assert updated.title == "From LegiScan"
+    assert updated.floor_sponsor == "WEILET"
+    assert Polticool.Repo.aggregate(Polticool.Ballot.Vote, :count) == 0
+  end
+
+  test "Release.backfill_bill_text only fetches the sponsor's bills that lack text" do
+    Polticool.Repo.insert!(%Polticool.Ballot.Bill{
+      session: "2026GS",
+      number: "HB0023",
+      prime_sponsor: "LISONK"
+    })
+
+    Polticool.Repo.insert!(%Polticool.Ballot.Bill{
+      session: "2026GS",
+      number: "HB0099",
+      prime_sponsor: "LISONK",
+      provisions: "already has text"
+    })
+
+    Polticool.Repo.insert!(%Polticool.Ballot.Bill{
+      session: "2026GS",
+      number: "HB0100",
+      prime_sponsor: "OTHERX"
+    })
+
+    Req.Test.stub(Legislature, fn conn ->
+      assert conn.request_path == "/data/2026GS/HB0023.json"
+      Plug.Conn.send_resp(conn, 200, fixture("2026GS_HB0023.json"))
+    end)
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      assert %{ok: 1} =
+               Polticool.Release.backfill_bill_text("LISONK",
+                 delay_ms: 0,
+                 plug: {Req.Test, Legislature}
+               )
+    end)
+
+    assert Legislature.get_bill("2026GS", "HB0023").provisions =~ "service animals"
+  end
+
   test "ingest is idempotent" do
     json = fixture_json("2026GS_HB0023.json")
     {:ok, _} = Legislature.ingest_json("2026GS", "HB0023", json)

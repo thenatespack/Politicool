@@ -113,6 +113,36 @@ defmodule Polticool.Legislature do
     end
   end
 
+  @doc """
+  Fills in bill text for a bill that is already stored (e.g. from LegiScan, whose
+  datasets carry no text). Fetches the le.utah.gov bill JSON and updates only
+  `provisions` and `versions`, plus sponsor fields that are still blank. Unlike
+  `ingest_bill/3` it never touches votes or LegiScan ids, so it cannot create
+  duplicate vote rows. Returns `{:ok, bill}` or `{:error, reason}`.
+  """
+  def backfill_text(%Bill{session: session, number: number} = bill, opts \\ []) do
+    with {:ok, json} <- fetch_bill_json(session, number, opts) do
+      parsed = parse_bill(session, number, json)
+
+      changes =
+        %{provisions: parsed.provisions, versions: parsed.versions}
+        |> put_blank(bill, :prime_sponsor, parsed.prime_sponsor)
+        |> put_blank(bill, :floor_sponsor, parsed.floor_sponsor)
+        |> put_blank(bill, :url, parsed.url)
+        |> then(fn c ->
+          if bill.sponsors in [nil, []], do: Map.put(c, :sponsors, parsed.sponsors), else: c
+        end)
+
+      bill |> Ecto.Changeset.change(changes) |> Repo.update()
+    end
+  end
+
+  defp put_blank(changes, bill, field, value) do
+    if Map.get(bill, field) in [nil, ""] and value not in [nil, ""],
+      do: Map.put(changes, field, value),
+      else: changes
+  end
+
   @doc "Stores an already-decoded bill JSON map. Idempotent (upserts)."
   def ingest_json(session, number, json) do
     attrs = parse_bill(session, number, json)
