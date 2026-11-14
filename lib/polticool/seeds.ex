@@ -88,16 +88,18 @@ defmodule Polticool.Seeds do
     hb394 =
       upsert!(Bill, [session: "2026GS", number: "HB0394"], %{
         title: "Veterinary Amendments",
-        prime_sponsor: "Thurston, Norman K",
+        prime_sponsor: "THURSNK",
         url: "https://le.utah.gov/Session/2026/bills/static/HB0394.html"
       })
 
     hb231 =
       upsert!(Bill, [session: "2026GS", number: "HB0231"], %{
         title: "Restaurant Tax Repeal Amendments",
-        prime_sponsor: "Thurston, Norman K",
+        prime_sponsor: "THURSNK",
         url: "https://le.utah.gov/Session/2026/bills/static/HB0231.html"
       })
+
+    remove_placeholder_pledges!(thurston)
 
     # Thurston: pledges + one receipt per outcome
     tax =
@@ -111,15 +113,6 @@ defmodule Polticool.Seeds do
 
     gsl =
       pledge!(thurston, "great-salt-lake", false, :news, "The Great Salt Lake needs more water")
-
-    open_gov =
-      pledge!(
-        thurston,
-        "transparency",
-        true,
-        :site,
-        "SAMPLE (replace with a verified quote): support open, low-cost public notices"
-      )
 
     receipt!(tax, %{
       outcome: :kept,
@@ -148,22 +141,6 @@ defmodule Polticool.Seeds do
     receipt!(gsl, %{
       outcome: :untested,
       rationale: @sample <> "no related floor vote found yet."
-    })
-
-    receipt!(open_gov, %{
-      outcome: :absent,
-      confidence: :high,
-      vote_position: :absent,
-      tally: "70-0-5",
-      bill_id: hjr10.id,
-      vote_id: hjr10_vote.id,
-      bill_title: "HJR 10 (Amendment A)",
-      bill_summary: hjr10.provisions,
-      source_url: @hjr10_vote_url,
-      verified: true,
-      rationale:
-        "Real data: Thurston, N. is listed absent on the 2025GS HJR 10 House vote (70 yea, 0 nay, 5 absent). " <>
-          "Linking it to the sample pledge above is illustrative."
     })
 
     # Chappell: promises only
@@ -200,6 +177,20 @@ defmodule Polticool.Seeds do
       amendment_a: hjr10,
       hjr10_vote: hjr10_vote
     }
+  end
+
+  # Earlier versions seeded a "SAMPLE (replace with a verified quote): ..." pledge
+  # (#937). Seeds only upsert, so delete it (and its receipts) from existing DBs.
+  defp remove_placeholder_pledges!(candidate) do
+    ids =
+      Repo.all(
+        from p in Pledge,
+          where: p.candidate_id == ^candidate.id and like(p.text, "SAMPLE%"),
+          select: p.id
+      )
+
+    Repo.delete_all(from r in Receipt, where: r.pledge_id in ^ids)
+    Repo.delete_all(from p in Pledge, where: p.id in ^ids)
   end
 
   defp pledge!(candidate, issue, specific, kind, text) do

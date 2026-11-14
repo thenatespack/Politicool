@@ -40,7 +40,6 @@ defmodule PolticoolWeb.CandidateLiveTest do
     assert has_element?(view, "#issue-group-education [data-role=outcome][data-outcome=kept]")
     # The Great Salt Lake pledge is vague, but its broken trap vote still counts.
     assert has_element?(view, "#issue-group-water [data-role=outcome][data-outcome=broken]")
-    assert has_element?(view, "#issue-group-other [data-role=outcome][data-outcome=absent]")
     assert has_element?(view, "#vague-promises summary", "Vague promises (1)")
   end
 
