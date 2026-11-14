@@ -36,7 +36,7 @@ defmodule Polticool.BallotTest do
         tally: %{"yea" => 70}
       })
 
-    Repo.insert!(%VotePosition{vote_id: vote.id, legislator_code: "THURN", position: :yea})
+    Repo.insert!(%VotePosition{vote_id: vote.id, legislator_code: "THURSNK", position: :yea})
     p1 = Repo.insert!(%Pledge{candidate_id: cand.id, text: "x", specific: true})
     Repo.insert!(%Pledge{candidate_id: cand.id, text: "vague", specific: false})
 

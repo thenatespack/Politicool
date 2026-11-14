@@ -66,4 +66,33 @@ defmodule Polticool.LegislatureTest do
     assert {:error, {:http_status, 404}} =
              Legislature.ingest_bill("2026GS", "HB9999", plug: {Req.Test, Legislature})
   end
+
+  test "parse_bill_search splits sponsored and floor-sponsored bills, skips unnumbered" do
+    bills = Legislature.parse_bill_search(fixture("billsearch_2026GS_THURSNK.html"))
+    by_role = Enum.group_by(bills, & &1.role, & &1.number)
+
+    assert length(by_role[:sponsor]) == 10
+    assert "HB0022" in by_role[:sponsor]
+    assert "HJR010" in by_role[:sponsor]
+    assert by_role[:floor_sponsor] == ~w(SJR007 SB0229 SB0175 SB0154 SB0147 SB0005)
+    refute Map.has_key?(by_role, :cosponsor)
+
+    assert %{title: "Vintage Vehicle Amendments"} = Enum.find(bills, &(&1.number == "HB0022"))
+  end
+
+  test "sponsored_bills fetches the legislator's bill search page" do
+    html = fixture("billsearch_2026GS_THURSNK.html")
+
+    Req.Test.stub(Legislature, fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.params["rep"] == "THURSNK"
+      assert conn.params["sess"] == "2026GS"
+      Plug.Conn.send_resp(conn, 200, html)
+    end)
+
+    assert {:ok, bills} =
+             Legislature.sponsored_bills("2026GS", "THURSNK", plug: {Req.Test, Legislature})
+
+    assert length(bills) == 16
+  end
 end

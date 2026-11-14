@@ -52,14 +52,20 @@ defmodule Polticool.Ballot.RollCall do
     end
   end
 
-  @doc "Convert parsed entries into position attrs with legislator codes. Option: `:roster`."
+  @doc """
+  Convert parsed entries into position attrs with legislator codes.
+
+  Options: `:roster` (from `Polticool.Legislators.fetch_roster/1`; without it codes
+  fall back to a guess that is often wrong) and `:house` (`"H"`/`"S"`).
+  """
   def to_positions(entries, opts \\ []) do
     roster = Keyword.get(opts, :roster, %{})
+    house = Keyword.get(opts, :house)
 
     entries
     |> Enum.map(fn %{name: name, position: pos} ->
       %{
-        legislator_code: Legislators.code_for(name, roster),
+        legislator_code: Legislators.code_for(name, roster, house),
         legislator_name: name,
         position: pos
       }
@@ -81,7 +87,7 @@ defmodule Polticool.Ballot.RollCall do
 
   @doc "Store positions from already-fetched HTML for `vote`."
   def store(%Vote{} = vote, html, opts \\ []) do
-    positions = html |> parse() |> to_positions(opts)
+    positions = html |> parse() |> to_positions(Keyword.put_new(opts, :house, vote.house))
 
     if positions == [] do
       {:error, :no_positions}

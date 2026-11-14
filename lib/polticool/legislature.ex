@@ -51,6 +51,61 @@ defmodule Polticool.Legislature do
     end
   end
 
+  @doc "URL of the bill search page listing a legislator's bills for a session."
+  def bill_search_url(session, code),
+    do:
+      "https://le.utah.gov/bills/billSearch.jsp?" <>
+        URI.encode_query(sess: session, disp: "all", sen: "", rep: code, sub: "", comm: "")
+
+  @doc """
+  Lists the bills a legislator sponsored, floor sponsored or cosponsored in a session,
+  as `{:ok, [%{number:, title:, role: :sponsor | :floor_sponsor | :cosponsor}]}`.
+  `code` is the roster id, e.g. `"THURSNK"`. Unnumbered (abandoned) bills are skipped.
+  """
+  def sponsored_bills(session, code, opts \\ []) do
+    req_opts =
+      [url: bill_search_url(session, code), retry: false, receive_timeout: 20_000]
+      |> Keyword.merge(Application.get_env(:polticool, :legislature_req_options, []))
+      |> Keyword.merge(opts)
+
+    case Req.get(req_opts) do
+      {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
+        {:ok, parse_bill_search(body)}
+
+      {:ok, %Req.Response{status: status}} ->
+        {:error, {:http_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Parses billSearch.jsp HTML. The page has three `#resultTbl` tables in order:
+  Sponsored, Floor Sponsored, Co Sponsored.
+  """
+  def parse_bill_search(html) when is_binary(html) do
+    html
+    |> LazyHTML.from_document()
+    |> LazyHTML.query("table#resultTbl")
+    |> Enum.zip([:sponsor, :floor_sponsor, :cosponsor])
+    |> Enum.flat_map(fn {table, role} ->
+      table
+      |> LazyHTML.query("tr")
+      |> Enum.flat_map(fn row ->
+        case row |> LazyHTML.query("td") |> Enum.map(&String.trim(LazyHTML.text(&1))) do
+          [number, title | _] ->
+            if number =~ ~r/^[HS][A-Z]{0,2}\d{3,4}$/,
+              do: [%{number: number, title: title, role: role}],
+              else: []
+
+          _ ->
+            []
+        end
+      end)
+    end)
+  end
+
   @doc "Fetches, parses and stores a bill and its votes."
   def ingest_bill(session, number, opts \\ []) do
     with {:ok, json} <- fetch_bill_json(session, number, opts) do
