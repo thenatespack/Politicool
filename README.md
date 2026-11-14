@@ -39,3 +39,14 @@ The dev database has Thurston's **2025GS** bills and votes, with roll calls for 
 | `Polticool.Scoring` | Receipt outcomes → Voted/Proposed/Promised bars → A–F grade |
 
 Tests never hit the network. They use `Req.Test` stubs and fixtures in `test/support/fixtures`. Run `mix precommit` before pushing.
+
+## Pledge extraction
+
+Extract a candidate's pledges from their campaign pages (Claude Haiku, verbatim quotes only):
+
+    ANTHROPIC_API_KEY=... mix polticool.extract_pledges CANDIDATE_ID URL [URL...]
+
+Each quote is checked against the fetched page text and dropped if it isn't found verbatim.
+Pledges are scored on four rubric criteria (measurable outcome, mechanism, timeframe,
+within office power). Fewer than 2 hits marks the pledge vague (`specific: false`),
+which lowers the Promised bar in `Polticool.Ballot.scorecard/1`. See `Polticool.Pledges`.
