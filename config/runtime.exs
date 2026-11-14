@@ -28,6 +28,16 @@ if api_key = System.get_env("ANTHROPIC_API_KEY") do
   config :polticool, Polticool.Anthropic, api_key: api_key
 end
 
+# Where recorded research runs are written and replayed from. Point it at a
+# persistent volume; the copy committed under priv/research_cache is the fallback.
+if dir = System.get_env("RESEARCH_CACHE_DIR") do
+  config :polticool, research_cache_dir: dir
+end
+
+if mode = System.get_env("RESEARCH_MODE") do
+  config :polticool, research_mode: if(mode == "cached", do: :cached, else: :live)
+end
+
 config :polticool, PolticoolWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
