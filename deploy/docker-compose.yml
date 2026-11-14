@@ -1,0 +1,42 @@
+# Production stack for polticool.nathanspackman.com
+#
+# Lives on the server at /opt/polticool/docker-compose.yml (copied there by
+# the deploy workflow). Secrets come from /opt/polticool/.env, which is created
+# once by hand on the server and never committed (see deploy/.env.example).
+#
+# The app only listens on 127.0.0.1:4010. Apache on the host terminates TLS and
+# reverse-proxies to it (see deploy/apache/polticool.conf).
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: polticool
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: polticool_prod
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U polticool -d polticool_prod"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ${APP_IMAGE:-ghcr.io/thenatespack/polticool}:${APP_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      PHX_SERVER: "true"
+      PHX_HOST: polticool.nathanspackman.com
+      PORT: "4000"
+      DATABASE_URL: ecto://polticool:${POSTGRES_PASSWORD}@db/polticool_prod
+    ports:
+      - "127.0.0.1:4010:4000"
+
+volumes:
+  pgdata:

@@ -20,6 +20,10 @@ if System.get_env("PHX_SERVER") do
   config :polticool, PolticoolWeb.Endpoint, server: true
 end
 
+if api_key = System.get_env("ANTHROPIC_API_KEY") do
+  config :polticool, Polticool.Anthropic, api_key: api_key
+end
+
 config :polticool, PolticoolWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
