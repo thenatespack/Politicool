@@ -88,11 +88,17 @@ defmodule Polticool.LegiScanTest do
 
   defp opts, do: [roster: @roster, overrides: %{}]
 
-  test "normalize_number pads to 4 digits" do
+  test "normalize_number pads prefix + numerals to 6 characters" do
     assert Import.normalize_number("HB216") == "HB0216"
     assert Import.normalize_number("SB7") == "SB0007"
-    assert Import.normalize_number("HJR12") == "HJR0012"
+    assert Import.normalize_number("HR3") == "HR0003"
+    assert Import.normalize_number("HJR12") == "HJR012"
+    assert Import.normalize_number("SJR7") == "SJR007"
+    assert Import.normalize_number("hcr 2") == "HCR002"
+    assert Import.normalize_number("HJR0010") == "HJR010"
     assert Import.normalize_number("HB0216") == "HB0216"
+    assert Import.normalize_number("HB1234") == "HB1234"
+    assert Import.normalize_number("HJR1234") == "HJR1234"
   end
 
   test "people map via roster by chamber and name; unmapped are listed" do

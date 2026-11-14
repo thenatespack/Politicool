@@ -76,11 +76,20 @@ defmodule Polticool.LegiScan.Import do
   def session_id(%{"year_start" => y}) when is_integer(y), do: "#{y}GS"
   def session_id(_), do: nil
 
-  @doc "`HB216` -> `HB0216`."
+  @doc """
+  Normalizes to the le.utah.gov bill code: prefix + numerals is 6 characters.
+
+  `HB216` -> `HB0216`, `HJR12` -> `HJR012`, `HJR0010` -> `HJR010`. Numbers whose
+  natural form exceeds 6 characters are left unpadded (never truncated).
+  """
   def normalize_number(number) when is_binary(number) do
     case Regex.run(~r/^([A-Za-z]+)\s*0*(\d+)$/, String.trim(number)) do
-      [_, prefix, digits] -> String.upcase(prefix) <> String.pad_leading(digits, 4, "0")
-      _ -> String.upcase(number)
+      [_, prefix, nums] ->
+        prefix = String.upcase(prefix)
+        prefix <> String.pad_leading(nums, max(6 - String.length(prefix), 1), "0")
+
+      _ ->
+        String.upcase(number)
     end
   end
 
