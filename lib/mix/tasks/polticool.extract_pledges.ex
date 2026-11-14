@@ -2,41 +2,51 @@ defmodule Mix.Tasks.Polticool.ExtractPledges do
   @shortdoc "Extracts a candidate's pledges from campaign pages using Haiku"
 
   @moduledoc """
-  Fetches campaign pages, extracts pledges with Claude Haiku, keeps only quotes
-  found verbatim in the page, scores them on the specificity rubric and stores them.
+  Fetches campaign pages (or reads saved copies), extracts pledges with Claude Haiku,
+  keeps only quotes found verbatim in the page, scores them on the specificity rubric
+  and stores them. Thin wrapper over `Polticool.Pledges.Runner`.
 
-      ANTHROPIC_API_KEY=... mix polticool.extract_pledges CANDIDATE_ID URL [URL...]
+      ANTHROPIC_API_KEY=... mix polticool.extract_pledges CANDIDATE SOURCE [SOURCE...]
+          [--dry-run] [--replace-seeded] [--source-url URL]
 
-  Re-running for the same candidate and URL replaces that page's pledges.
+  `CANDIDATE` is an id, an le_code (THURSNK) or a name. Each `SOURCE` is a URL or a
+  local `.html`/`.txt`/`.md` file; a file needs its original page URL, as
+  `PATH=URL` or `--source-url` (single file). Re-running is idempotent.
   """
   use Mix.Task
 
-  alias Polticool.Pledges
+  alias Polticool.Pledges.Runner
 
   @impl Mix.Task
-  def run([id, _ | _] = argv) do
-    candidate_id =
-      case Integer.parse(id) do
-        {n, ""} -> n
-        _ -> usage()
-      end
+  def run(argv) do
+    {flags, args, _} =
+      OptionParser.parse(argv,
+        strict: [dry_run: :boolean, replace_seeded: :boolean, source_url: :string]
+      )
 
-    Mix.Task.run("app.start")
+    case args do
+      [candidate, _ | _] ->
+        Mix.Task.run("app.start")
+        sources = args |> tl() |> Enum.map(&parse_source/1)
 
-    for url <- tl(argv) do
-      case Pledges.extract_from_url(candidate_id, url) do
-        {:ok, %{pledges: pledges, dropped: dropped, vague: vague}} ->
-          Mix.shell().info(
-            "#{url}: stored #{length(pledges)} pledges (#{vague} vague), dropped #{length(dropped)} unverifiable quotes"
-          )
+        case Runner.run(candidate, sources, flags) do
+          {:ok, %{failed: 0}} -> :ok
+          _ -> Mix.raise("pledge extraction had errors")
+        end
 
-        {:error, reason} ->
-          Mix.shell().error("#{url} failed: #{inspect(reason)}")
-      end
+      _ ->
+        Mix.raise(
+          "usage: mix polticool.extract_pledges CANDIDATE SOURCE [SOURCE...] [--dry-run] [--replace-seeded] [--source-url URL]"
+        )
     end
   end
 
-  def run(_), do: usage()
-
-  defp usage, do: Mix.raise("usage: mix polticool.extract_pledges CANDIDATE_ID URL [URL...]")
+  defp parse_source(arg) do
+    with false <- String.starts_with?(arg, ["http://", "https://"]),
+         [path, url] <- String.split(arg, "=", parts: 2) do
+      {path, url}
+    else
+      _ -> arg
+    end
+  end
 end

@@ -94,6 +94,21 @@ defmodule Polticool.Release do
   end
 
   @doc """
+  Extracts a candidate's pledges with Claude Haiku (about 1 Anthropic call per
+  source). `candidate` is an id, le_code or name. `sources` are URLs and/or saved
+  files (`.html`, `.txt`, `.md`); a file needs its original page URL as `{path, url}`
+  or `source_url:` (single file), otherwise it is refused. Options: `dry_run: true`
+  (writes nothing), `replace_seeded: true` (after success, deletes the candidate's
+  seeded sample pledges and their receipts). Re-running is idempotent.
+
+      bin/polticool eval 'Polticool.Release.extract_pledges("THURSNK", ["https://normthurston.com/issues"], replace_seeded: true)'
+  """
+  def extract_pledges(candidate, sources, opts \\ []) do
+    start_app()
+    Polticool.Pledges.Runner.run(candidate, sources, opts)
+  end
+
+  @doc """
   Runs the HD62 seeds (idempotent; also removes SAMPLE placeholder pledges).
 
       bin/polticool eval 'Polticool.Release.seed()'
