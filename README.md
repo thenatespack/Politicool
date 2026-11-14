@@ -50,3 +50,12 @@ Each quote is checked against the fetched page text and dropped if it isn't foun
 Pledges are scored on four rubric criteria (measurable outcome, mechanism, timeframe,
 within office power). Fewer than 2 hits marks the pledge vague (`specific: false`),
 which lowers the Promised bar in `Polticool.Ballot.scorecard/1`. See `Polticool.Pledges`.
+
+## Money trail
+
+Campaign contributions per candidate, grouped by industry. Facts only: the data states who gave what, never that a donation influenced a vote.
+
+    mix polticool.import_money --candidate Thurston path/to/export.csv
+    mix polticool.import_money --candidate Chappell priv/data/money_fallback.json  # hand-entered fallback
+
+Donors are normalized, tagged with `claude-haiku-5-5` from a fixed industry list (`ANTHROPIC_API_KEY` required), and stored in `contributions`. `Polticool.Money.top_industries(candidate, 5)` returns `[%{industry, total, share}]`. The column format of the disclosures.utah.gov "Download Data by Year" CSV export is assumed (header-alias matching, documented in `Polticool.Money`). `priv/data/money_fallback.sample.json` is a SAMPLE template for hand-entered donors.
