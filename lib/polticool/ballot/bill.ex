@@ -12,18 +12,20 @@ defmodule Polticool.Ballot.Bill do
     field :provisions, :string
     field :versions, {:array, :map}, default: []
     field :url, :string
+    field :legiscan_bill_id, :integer
 
     has_many :votes, Polticool.Ballot.Vote
 
     timestamps(type: :utc_datetime)
   end
 
-  @fields ~w(session number title prime_sponsor floor_sponsor sponsors provisions versions url)a
+  @fields ~w(session number title prime_sponsor floor_sponsor sponsors provisions versions url legiscan_bill_id)a
 
   def changeset(bill, attrs) do
     bill
     |> cast(attrs, @fields)
     |> validate_required([:session, :number])
     |> unique_constraint([:session, :number])
+    |> unique_constraint(:legiscan_bill_id)
   end
 end

@@ -20,6 +20,10 @@ if System.get_env("PHX_SERVER") do
   config :polticool, PolticoolWeb.Endpoint, server: true
 end
 
+if key = System.get_env("LEGISCAN_API_KEY") do
+  config :polticool, Polticool.LegiScan, api_key: key
+end
+
 if api_key = System.get_env("ANTHROPIC_API_KEY") do
   config :polticool, Polticool.Anthropic, api_key: api_key
 end
