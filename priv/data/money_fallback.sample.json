@@ -1,0 +1,6 @@
+{
+  "_note": "SAMPLE TEMPLATE ONLY - placeholder entries, not real donors. Copy to money_fallback.json and replace with donors hand-entered from disclosures.utah.gov reports.",
+  "donors": [
+    {"donor_name": "SAMPLE Donor One LLC", "amount": 0, "date": "2026-01-01", "report_id": "SAMPLE"}
+  ]
+}
