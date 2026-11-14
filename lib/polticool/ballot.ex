@@ -12,11 +12,14 @@ defmodule Polticool.Ballot do
   @doc """
   Lists races with their candidates. `issues` (list of issue strings) orders
   races so those whose candidates have pledges on those issues come first.
+  Only candidates with a `race_key` are on the ballot; legislators added by live
+  research have none.
   """
   def list_races(issues \\ []) do
     issues = List.wrap(issues)
 
     Candidate
+    |> where([c], not is_nil(c.race_key))
     |> order_by([c], asc: c.office, desc: c.incumbent, asc: c.name)
     |> preload(:pledges)
     |> Repo.all()
