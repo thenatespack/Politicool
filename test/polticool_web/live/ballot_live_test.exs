@@ -16,7 +16,7 @@ defmodule PolticoolWeb.BallotLiveTest do
 
       assert has_element?(
                view,
-               "#race-hd62 a#compare-hd62[href='/races/hd62/compare']",
+               "#race-hd62 a#compare-hd62[href='/races/hd62/compare?issues=housing%2Cwater']",
                "Compare"
              )
 
