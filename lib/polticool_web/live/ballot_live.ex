@@ -118,7 +118,11 @@ defmodule PolticoolWeb.BallotLive do
                 <.grade_tile grade={c.grade} />
                 <div class="min-w-0">
                   <p class="text-[15px] leading-snug">
-                    {c.name} <.party_label :if={c.party} party={c.party} />
+                    <.link
+                      navigate={~p"/candidates/#{c.id}"}
+                      class="underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
+                    >{c.name}</.link>
+                    <.party_label :if={c.party} party={c.party} />
                   </p>
                   <p class="text-[12px] text-muted">{c.meta}</p>
                 </div>
@@ -249,6 +253,7 @@ defmodule PolticoolWeb.BallotLive do
         do: "graded on #{scorecard.bars_used} of 3 bars"
 
     %{
+      id: candidate.id,
       name: candidate.name,
       party: candidate.party,
       grade: scorecard.grade,

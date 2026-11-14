@@ -74,7 +74,13 @@ defmodule PolticoolWeb.CompareLive do
           >
             <.grade_tile grade={col.scorecard.grade} size={:md} class="mx-auto" />
             <p class="mt-1.5 text-[13.5px] font-semibold leading-tight">
-              {col.candidate.name}
+              <.link
+                id={"scorecard-link-#{col.candidate.id}"}
+                navigate={~p"/candidates/#{col.candidate.id}"}
+                class="underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
+              >
+                {col.candidate.name}
+              </.link>
               <.party_label :if={col.candidate.party} party={col.candidate.party} />
             </p>
             <p class="text-[11px] text-muted">

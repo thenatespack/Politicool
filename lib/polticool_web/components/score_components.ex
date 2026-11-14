@@ -7,9 +7,9 @@ defmodule PolticoolWeb.ScoreComponents do
   use Phoenix.Component
 
   @bars [
-    {:promised, "Promised"},
-    {:proposed, "Proposed"},
-    {:voted, "Voted"}
+    {:promised, "Promised", "Promised · specific promises"},
+    {:proposed, "Proposed", "Proposed · related bills"},
+    {:voted, "Voted", "Voted · aligned votes"}
   ]
 
   @doc """
@@ -21,17 +21,26 @@ defmodule PolticoolWeb.ScoreComponents do
     required: true,
     doc: "map with :promised, :proposed, :voted (0..100 or nil)"
 
+  attr :labels, :atom, default: :short, values: [:short, :long], doc: ":long explains each bar"
   attr :class, :any, default: nil
   attr :rest, :global
 
   def score_bars(assigns) do
-    bars = for {key, label} <- @bars, do: {key, label, to_value(Map.get(assigns.scorecard, key))}
+    bars =
+      for {key, short, long} <- @bars,
+          do:
+            {key, if(assigns.labels == :long, do: long, else: short),
+             to_value(Map.get(assigns.scorecard, key))}
+
     assigns = assign(assigns, :bars, bars)
 
     ~H"""
     <ul data-role="score-bars" class={["space-y-1.5 text-left", @class]} {@rest}>
       <li :for={{key, label, value} <- @bars} data-bar={key} data-value={value || "none"}>
-        <span class="flex justify-between gap-2 text-[10.5px] leading-tight">
+        <span class={[
+          "flex justify-between gap-2 leading-tight",
+          if(@labels == :long, do: "text-[12.5px]", else: "text-[10.5px]")
+        ]}>
           <span class="text-muted">{label}</span>
           <span :if={value} class="font-semibold tabular-nums text-ink">
             {value}<span class="sr-only"> out of 100</span>
