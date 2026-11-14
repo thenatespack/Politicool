@@ -41,7 +41,8 @@ defmodule Polticool.Anthropic do
 
   `messages` is a list of `%{role:, content:}` (content may be a string or a block list;
   put `document/2` blocks first in the user content). Opts: `:model` (default sonnet),
-  `:system` (string or blocks), `:tools`, `:max_tokens`, `:temperature`.
+  `:system` (string or blocks), `:tools`, `:max_tokens`. A `:temperature` option is
+  ignored: current models reject it with a 400 ("temperature is deprecated").
   Returns `{:ok, body}` or `{:error, reason}`.
   """
   def chat(messages, opts \\ []) when is_list(messages) do
@@ -53,7 +54,6 @@ defmodule Polticool.Anthropic do
       }
       |> put_if(:system, opts[:system])
       |> put_if(:tools, opts[:tools])
-      |> put_if(:temperature, opts[:temperature])
 
     case config(:api_key, nil) do
       nil -> {:error, :missing_api_key}
