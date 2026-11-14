@@ -32,6 +32,20 @@ defmodule Polticool.AnthropicTest do
     assert doc["cache_control"] == %{"type" => "ephemeral"}
   end
 
+  test "chat/2 never sends temperature (current models reject it with a 400)" do
+    test_pid = self()
+
+    Req.Test.stub(Anthropic, fn conn ->
+      {:ok, raw, conn} = Plug.Conn.read_body(conn)
+      send(test_pid, {:body, Jason.decode!(raw)})
+      Req.Test.json(conn, %{"content" => []})
+    end)
+
+    assert {:ok, _} = Anthropic.chat([%{role: "user", content: "x"}], temperature: 0)
+    assert_received {:body, body}
+    refute Map.has_key?(body, "temperature")
+  end
+
   test "chat/2 returns http errors" do
     Req.Test.stub(Anthropic, fn conn ->
       conn |> Plug.Conn.put_status(400) |> Req.Test.json(%{"error" => "bad"})
