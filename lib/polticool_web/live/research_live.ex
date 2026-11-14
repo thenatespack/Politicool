@@ -182,6 +182,40 @@ defmodule PolticoolWeb.ResearchLive do
       </div>
 
       <section
+        :if={@status == :idle && @candidates == [] && is_nil(@error)}
+        id="research-how"
+        aria-labelledby="research-how-title"
+        class="mt-6 rounded-[12px] border border-dashed border-rule-strong p-4"
+      >
+        <h2
+          id="research-how-title"
+          class="text-[11px] font-semibold uppercase tracking-[0.12em] text-faint"
+        >
+          How it works
+        </h2>
+        <ol class="mt-2.5 space-y-2 text-[13px] text-ink-soft">
+          <li :for={
+            {n, text} <- [
+              {1, "Finds the legislator on le.utah.gov"},
+              {2, "Reads their campaign promises and sorts specific from vague"},
+              {3, "Matches promises to their bills and roll-call votes, citing every match"},
+              {4, "Grades Promised · Proposed · Voted"}
+            ]
+          }>
+            <span class="flex items-start gap-2.5">
+              <span
+                aria-hidden="true"
+                class="mt-px grid size-[18px] shrink-0 place-items-center rounded-full border border-accent text-[10px] font-bold text-accent"
+              >
+                {n}
+              </span>
+              {text}
+            </span>
+          </li>
+        </ol>
+      </section>
+
+      <section
         :if={@status != :idle}
         id="research-run"
         aria-labelledby="research-run-title"
@@ -201,6 +235,13 @@ defmodule PolticoolWeb.ResearchLive do
           aria-busy={to_string(@status == :running)}
           class="space-y-0.5"
         >
+          <li
+            id="steps-starting"
+            class="hidden items-center gap-2.5 py-1.5 text-[13px] text-muted only:flex"
+          >
+            <span class="size-[18px] shrink-0 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin" />
+            Starting research…
+          </li>
           <li
             :for={{dom_id, step} <- @streams.steps}
             id={dom_id}

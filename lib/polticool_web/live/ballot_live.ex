@@ -55,7 +55,7 @@ defmodule PolticoolWeb.BallotLive do
         <.link
           id="change-issues"
           navigate={~p"/?#{IssueCategories.to_params(@selected)}"}
-          class="text-[12.5px] text-muted underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
+          class="-my-1.5 py-1.5 text-[12.5px] text-muted underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
         >
           Change issues
         </.link>
@@ -75,7 +75,7 @@ defmodule PolticoolWeb.BallotLive do
           phx-value-issue={c.id}
           aria-pressed={to_string(c.id in @selected)}
           class={[
-            "rounded-full border px-2.5 py-1 text-[12px] transition duration-150 active:scale-95",
+            "rounded-full border px-2.5 py-1 text-[12px] transition duration-150 active:scale-95 phx-click-loading:opacity-60",
             if(c.id in @selected,
               do: "border-accent bg-accent text-white hover:bg-grade-b",
               else: "border-rule text-muted hover:border-muted hover:text-ink"
@@ -104,7 +104,7 @@ defmodule PolticoolWeb.BallotLive do
                 id={"compare-#{race.key}"}
                 navigate={race.compare_path}
                 aria-describedby={"#{dom_id}-title"}
-                class="group shrink-0 text-[12.5px] font-semibold text-accent"
+                class="group -my-1.5 py-1.5 shrink-0 text-[12.5px] font-semibold text-accent"
               >
                 Compare
                 <span
@@ -122,7 +122,7 @@ defmodule PolticoolWeb.BallotLive do
                   <p class="text-[15px] leading-snug">
                     <.link
                       navigate={~p"/candidates/#{c.id}"}
-                      class="underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
+                      class="-my-1.5 py-1.5 underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
                     >{c.name}</.link>
                     <.party_label :if={c.party} party={c.party} />
                   </p>
@@ -153,7 +153,7 @@ defmodule PolticoolWeb.BallotLive do
                 id={"brief-#{judge.slug}"}
                 navigate={judge.brief_path}
                 aria-describedby={"#{dom_id}-title"}
-                class="shrink-0 text-[12.5px] font-semibold text-accent"
+                class="-my-1.5 py-1.5 shrink-0 text-[12.5px] font-semibold text-accent"
               >
                 Brief <span aria-hidden="true">→</span>
               </.link>
@@ -183,7 +183,7 @@ defmodule PolticoolWeb.BallotLive do
                 id={"decode-#{amendment.key}"}
                 navigate={amendment.decode_path}
                 aria-describedby={"#{dom_id}-title"}
-                class="shrink-0 text-[12.5px] font-semibold text-accent"
+                class="-my-1.5 py-1.5 shrink-0 text-[12.5px] font-semibold text-accent"
               >
                 Decode <span aria-hidden="true">→</span>
               </.link>

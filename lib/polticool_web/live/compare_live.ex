@@ -56,7 +56,7 @@ defmodule PolticoolWeb.CompareLive do
       <.link
         id="back-to-ballot"
         navigate={~p"/ballot?#{IssueCategories.to_params(@issues)}"}
-        class="group inline-flex items-center gap-1 text-[12.5px] text-muted transition-colors hover:text-accent"
+        class="group -my-1.5 py-1.5 inline-flex items-center gap-1 text-[12.5px] text-muted transition-colors hover:text-accent"
       >
         <span aria-hidden="true" class="transition-transform group-hover:-translate-x-0.5">←</span>
         Your ballot
@@ -77,7 +77,7 @@ defmodule PolticoolWeb.CompareLive do
               <.link
                 id={"scorecard-link-#{col.candidate.id}"}
                 navigate={~p"/candidates/#{col.candidate.id}"}
-                class="underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
+                class="-my-1.5 py-1.5 underline decoration-rule-strong underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
               >
                 {col.candidate.name}
               </.link>
