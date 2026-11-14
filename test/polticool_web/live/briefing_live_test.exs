@@ -47,6 +47,45 @@ defmodule PolticoolWeb.BriefingLiveTest do
     assert has_element?(view, "h2#judge-pohlman-title")
   end
 
+  test "/amendments/b shows Amendment B with rep votes from the roll call", %{conn: conn} do
+    alias Polticool.Repo
+    alias Polticool.Ballot.{Bill, Vote, VotePosition}
+
+    bill = Repo.insert!(%Bill{session: "2025GS", number: "SJR002", title: "S.J.R. 2"})
+
+    third =
+      Repo.insert!(%Vote{
+        bill_id: bill.id,
+        vote_id: "ls-2",
+        house: "H",
+        kind: :floor,
+        date: ~D[2025-03-04]
+      })
+
+    earlier =
+      Repo.insert!(%Vote{
+        bill_id: bill.id,
+        vote_id: "ls-1",
+        house: "H",
+        kind: :floor,
+        date: ~D[2025-02-01]
+      })
+
+    Repo.insert!(%VotePosition{vote_id: third.id, legislator_code: "THURSNK", position: :yea})
+    Repo.insert!(%VotePosition{vote_id: earlier.id, legislator_code: "THURSNK", position: :nay})
+
+    {:ok, view, _html} = live(conn, ~p"/amendments/b")
+
+    assert has_element?(view, "h1#amendment-b-title", "Amendment B")
+    assert has_element?(view, "#yes-b", "60%")
+    assert has_element?(view, "#amendment-b", "Senate 21-8-0 · House 55-17-3")
+    # Latest House floor vote wins; Thompson has no position on record.
+    assert has_element?(view, "#reps-b", "Norman K. Thurston")
+    assert has_element?(view, "#reps-b", "Yea")
+    assert has_element?(view, "#reps-b", "Not on record")
+    assert has_element?(view, "#reps-a", "Absent")
+  end
+
   test "an unknown briefing goes back to the ballot", %{conn: conn} do
     assert {:error, {:live_redirect, %{to: "/ballot"}}} = live(conn, ~p"/races/judicial/nobody")
     assert {:error, {:live_redirect, %{to: "/ballot"}}} = live(conn, ~p"/amendments/z")
@@ -58,5 +97,6 @@ defmodule PolticoolWeb.BriefingLiveTest do
 
     assert has_element?(view, "#brief-pohlman[href='/races/judicial/pohlman']", "Brief")
     assert has_element?(view, "#decode-amendment-a[href='/amendments/a']", "Decode")
+    assert has_element?(view, "#decode-amendment-b[href='/amendments/b']", "Decode")
   end
 end

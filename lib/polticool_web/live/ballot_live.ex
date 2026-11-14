@@ -13,7 +13,8 @@ defmodule PolticoolWeb.BallotLive do
 
   # Ballot measures shown in the Amendments section, read from their bills.
   @amendments [
-    %{key: "amendment-a", slug: "a", name: "Amendment A", session: "2025GS", number: "HJR010"}
+    %{key: "amendment-a", slug: "a", name: "Amendment A", session: "2025GS", number: "HJR010"},
+    %{key: "amendment-b", slug: "b", name: "Amendment B", session: "2025GS", number: "SJR002"}
   ]
 
   @impl true

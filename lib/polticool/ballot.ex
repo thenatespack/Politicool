@@ -108,4 +108,23 @@ defmodule Polticool.Ballot do
 
   @doc "PubSub topic for live research of the given id."
   def research_topic(id), do: "research:#{id}"
+
+  @doc """
+  A legislator's position on the last floor vote in `house` ("H"/"S") for a
+  bill, e.g. the final House passage. Returns `:yea`, `:nay`, `:absent`, or
+  `nil` when the bill, vote or position isn't on record.
+  """
+  def floor_position(session, number, house, legislator_code) do
+    from(p in Polticool.Ballot.VotePosition,
+      join: v in assoc(p, :vote),
+      join: b in assoc(v, :bill),
+      where: b.session == ^session and b.number == ^number,
+      where: v.house == ^house and v.kind == :floor,
+      where: p.legislator_code == ^legislator_code,
+      order_by: [desc_nulls_last: v.date, desc: v.id],
+      limit: 1,
+      select: p.position
+    )
+    |> Repo.one()
+  end
 end
