@@ -8,7 +8,7 @@ defmodule Polticool.Matching do
 
     1. **Match (Sonnet)** gets the bill text as a citations-enabled document and
        returns a plain-text verdict. `Anthropic.verify_citations/1` must pass, so an
-       uncited answer is rejected and produces no receipt.
+       answer with no citations at all is rejected and produces no receipt.
     2. **Format (Haiku)** gets only the verified text (no documents) and fills a forced
        tool call: `relation`, `confidence`, `rationale`, `quote`. The receipt's
        `citations` (`cited_text` plus location) come from step 1, never from Haiku.
@@ -183,7 +183,9 @@ defmodule Polticool.Matching do
   end
 
   defp store(pledge, bill, cited_blocks, fmt, opts) do
-    citations = cited_blocks |> Enum.flat_map(& &1["citations"]) |> Enum.map(&clean_citation/1)
+    citations =
+      cited_blocks |> Enum.flat_map(&(&1["citations"] || [])) |> Enum.map(&clean_citation/1)
+
     cited_texts = Enum.map(citations, & &1["cited_text"])
 
     # Keep Haiku's quote only if it is really inside a cited passage.

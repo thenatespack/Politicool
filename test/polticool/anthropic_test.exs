@@ -58,6 +58,8 @@ defmodule Polticool.AnthropicTest do
     cited = %{"type" => "text", "text" => "a", "citations" => [%{"cited_text" => "x"}]}
     bare = %{"type" => "text", "text" => "b"}
     assert {:ok, [^cited]} = Anthropic.verify_citations(%{"content" => [cited]})
-    assert {:error, :uncited, [^bare]} = Anthropic.verify_citations([cited, bare])
+    # Real replies interleave uncited connector text with cited spans.
+    assert {:ok, [^bare, ^cited, ^bare]} = Anthropic.verify_citations([bare, cited, bare])
+    assert {:error, :uncited, [^bare]} = Anthropic.verify_citations([bare])
   end
 end

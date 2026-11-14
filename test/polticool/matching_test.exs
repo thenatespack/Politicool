@@ -20,8 +20,13 @@ defmodule Polticool.MatchingTest do
         refute Map.has_key?(body, "output_config")
         citations = if cited?, do: [citation()], else: []
 
+        # Real Citations replies interleave uncited connector text with cited spans.
         Req.Test.json(conn, %{
-          "content" => [%{"type" => "text", "text" => "It advances.", "citations" => citations}]
+          "content" => [
+            %{"type" => "text", "text" => "The bill advances the pledge. It says "},
+            %{"type" => "text", "text" => "permits within 60 days", "citations" => citations},
+            %{"type" => "text", "text" => ", which is the pledged reform."}
+          ]
         })
       else
         refute inspect(body["messages"]) =~ "document"
@@ -128,6 +133,14 @@ defmodule Polticool.MatchingTest do
     assert {:ok, %{receipts: [r]}} = Matching.match_pledge(p, [bill])
     assert r.outcome == :untested and Receipt.possibly_related?(r)
     assert Ballot.scorecard(c).voted == nil
+  end
+
+  test "interleaved uncited connector text still yields a cited receipt", %{p: p, bill: bill} do
+    stub(input: input("advances", "high"))
+
+    assert {:ok, %{receipts: [r], rejected: []}} = Matching.match_pledge(p, [bill])
+    assert [%{"cited_text" => @provision}] = r.citations
+    assert r.quote == @provision
   end
 
   test "uncited verdicts and unrelated bills produce no receipt", %{p: p, bill: bill} do
