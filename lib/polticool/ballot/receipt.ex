@@ -29,6 +29,9 @@ defmodule Polticool.Ballot.Receipt do
 
   def outcomes, do: @outcomes
 
+  @doc "True when the match is not high-confidence: shown as \"Possibly related\", never graded."
+  def possibly_related?(%__MODULE__{confidence: c}), do: c != :high
+
   @fields ~w(pledge_id bill_id vote_id outcome confidence trap rationale citations verified track_record quote source_url bill_title bill_summary vote_position tally retrieved_at)a
 
   def changeset(receipt, attrs) do
