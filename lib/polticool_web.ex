@@ -88,6 +88,9 @@ defmodule PolticoolWeb do
       import PolticoolWeb.CoreComponents
       # Civic-editorial badges (party labels, outcomes, unofficial result)
       import PolticoolWeb.BadgeComponents
+      # Receipt card (Quote → Bill → Vote)
+      import PolticoolWeb.ReceiptComponents,
+        only: [receipt_card: 1, show_receipt_step: 2, show_receipt_step: 3]
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

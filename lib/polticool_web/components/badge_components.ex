@@ -97,6 +97,7 @@ defmodule PolticoolWeb.BadgeComponents do
     required: true,
     doc: "kept | partial | broken | untested | absent (atom or string)"
 
+  attr :size, :atom, default: :sm, values: [:sm, :lg], doc: ":lg for the receipt verdict"
   attr :class, :any, default: nil
   attr :rest, :global
 
@@ -109,7 +110,9 @@ defmodule PolticoolWeb.BadgeComponents do
       data-role="outcome"
       data-outcome={@outcome}
       class={[
-        "inline-flex items-center whitespace-nowrap rounded-[3px] border px-1.5 py-px text-[10px] font-bold uppercase leading-[1.4] tracking-[0.04em]",
+        "inline-flex items-center whitespace-nowrap border font-bold uppercase leading-[1.4] tracking-[0.04em]",
+        @size == :sm && "rounded-[3px] px-1.5 py-px text-[10px]",
+        @size == :lg && "rounded-[5px] px-2.5 py-1 text-[13px]",
         outcome_classes(@outcome),
         @class
       ]}
@@ -190,4 +193,44 @@ defmodule PolticoolWeb.BadgeComponents do
 
   defp unofficial_label(nil), do: "Unofficial result"
   defp unofficial_label(canvass), do: "Unofficial result · canvass #{canvass}"
+
+  @doc """
+  "Secondary source" badge for pledges taken from news coverage, which are
+  only ever shown as verbatim quotes.
+  """
+  attr :class, :any, default: nil
+  attr :rest, :global
+
+  def secondary_source_badge(assigns) do
+    ~H"""
+    <span
+      data-role="secondary-source"
+      class={[
+        "inline-block rounded-[3px] bg-outcome-untested px-1.5 py-px text-[10px] font-bold uppercase leading-[1.4] tracking-[0.04em] text-outcome-untested-ink",
+        @class
+      ]}
+      {@rest}
+    >
+      Secondary source<span class="font-medium normal-case tracking-normal"> · verbatim quote</span>
+    </span>
+    """
+  end
+
+  @doc """
+  "✓ Human-verified" mark for receipts a person has hand-checked.
+  """
+  attr :class, :any, default: nil
+  attr :rest, :global
+
+  def verified_badge(assigns) do
+    ~H"""
+    <span
+      data-role="verified"
+      class={["inline-flex items-center gap-1 text-[11.5px] font-semibold text-accent", @class]}
+      {@rest}
+    >
+      <span aria-hidden="true">✓</span> Human-verified
+    </span>
+    """
+  end
 end
