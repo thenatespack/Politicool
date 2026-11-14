@@ -37,34 +37,67 @@ defmodule Polticool.Pledges do
   Fetches `url`, extracts and stores pledges for `candidate_id`.
 
   Returns `{:ok, %{pledges: [%Pledge{}], dropped: [quote], vague: n}}` or `{:error, reason}`.
-  Re-running for the same candidate and URL replaces that page's earlier pledges.
+  Idempotent: re-running for the same candidate and URL keeps pledges whose text is
+  unchanged (and their receipts), removes ones no longer found and inserts new ones.
+  Option `dry_run: true` extracts without writing (pledges are unsaved structs).
   """
   def extract_from_url(candidate_id, url, opts \\ []) do
-    with {:ok, html} <- fetch(url, opts),
-         text = html_to_text(html),
-         {:ok, found} <- extract(text, url) do
-      retrieved_at = DateTime.utc_now() |> DateTime.truncate(:second)
-      {kept, dropped} = Enum.split_with(found, &verbatim?(&1.quote, text))
-
-      Repo.transaction(fn ->
-        Repo.delete_all(
-          from p in Pledge, where: p.candidate_id == ^candidate_id and p.source_url == ^url
-        )
-
-        pledges = Enum.map(kept, &insert_pledge!(&1, candidate_id, url, retrieved_at))
-
-        %{
-          pledges: pledges,
-          dropped: Enum.map(dropped, & &1.quote),
-          vague: Enum.count(pledges, &(not &1.specific))
-        }
-      end)
+    with {:ok, html} <- fetch(url, opts) do
+      extract_from_text(candidate_id, html_to_text(html), url, opts)
     end
   end
 
-  defp insert_pledge!(item, candidate_id, url, retrieved_at) do
-    %Pledge{}
-    |> Pledge.changeset(%{
+  @doc """
+  Like `extract_from_url/3` for page text already in hand (a saved copy). `source_url`
+  is the original page URL and is required: no source means no claim.
+  """
+  def extract_from_text(candidate_id, text, source_url, opts \\ [])
+
+  def extract_from_text(_candidate_id, _text, url, _opts) when url in [nil, ""],
+    do: {:error, :missing_source_url}
+
+  def extract_from_text(candidate_id, text, url, opts) do
+    with {:ok, found} <- extract(text, url) do
+      retrieved_at = DateTime.utc_now() |> DateTime.truncate(:second)
+      {kept, dropped} = Enum.split_with(found, &verbatim?(&1.quote, text))
+      kept = Enum.uniq_by(kept, & &1.quote)
+
+      if opts[:dry_run] do
+        pledges = Enum.map(kept, &build_pledge(&1, candidate_id, url, retrieved_at))
+        {:ok, result(pledges, dropped)}
+      else
+        Repo.transaction(fn ->
+          existing =
+            Repo.all(
+              from p in Pledge, where: p.candidate_id == ^candidate_id and p.source_url == ^url
+            )
+
+          quotes = MapSet.new(kept, & &1.quote)
+          stale = for p <- existing, not MapSet.member?(quotes, p.text), do: p.id
+          Repo.delete_all(from p in Pledge, where: p.id in ^stale)
+
+          pledges =
+            Enum.map(kept, fn item ->
+              Enum.find(existing, &(&1.text == item.quote)) ||
+                insert_pledge!(item, candidate_id, url, retrieved_at)
+            end)
+
+          result(pledges, dropped)
+        end)
+      end
+    end
+  end
+
+  defp result(pledges, dropped) do
+    %{
+      pledges: pledges,
+      dropped: Enum.map(dropped, & &1.quote),
+      vague: Enum.count(pledges, &(not &1.specific))
+    }
+  end
+
+  defp pledge_attrs(item, candidate_id, url, retrieved_at) do
+    %{
       candidate_id: candidate_id,
       text: item.quote,
       source_url: url,
@@ -73,7 +106,18 @@ defmodule Polticool.Pledges do
       rubric_hits: item.rubric,
       specific: not vague?(item.rubric),
       retrieved_at: retrieved_at
-    })
+    }
+  end
+
+  defp build_pledge(item, candidate_id, url, retrieved_at) do
+    Ecto.Changeset.apply_changes(
+      Pledge.changeset(%Pledge{}, pledge_attrs(item, candidate_id, url, retrieved_at))
+    )
+  end
+
+  defp insert_pledge!(item, candidate_id, url, retrieved_at) do
+    %Pledge{}
+    |> Pledge.changeset(pledge_attrs(item, candidate_id, url, retrieved_at))
     |> Repo.insert!()
   end
 

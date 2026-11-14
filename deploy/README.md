@@ -99,6 +99,22 @@ sudo docker compose exec app bin/polticool eval 'Polticool.Release.backfill_bill
 sudo docker compose exec app bin/polticool eval 'Polticool.Release.seed()'
 ```
 
+**Extract pledges** (Claude Haiku, about 1 Anthropic call per source). Sources are URLs
+and/or saved copies of campaign pages (`.html`, `.txt`, `.md`; for a PDF, convert to text
+first). A saved file must be given with its original page URL as `{path, url}`, otherwise
+it is refused. Re-running is idempotent (unchanged pledges and their receipts are kept).
+`dry_run: true` prints what would be stored; `replace_seeded: true` deletes the candidate's
+seeded sample pledges and their receipts, but only after a fully successful extraction.
+
+```sh
+cd /opt/polticool
+# optional: copy saved pages into the container (/tmp is wiped when the container is recreated)
+sudo docker compose cp ./pages app:/tmp/pages
+sudo docker compose exec app bin/polticool eval 'Polticool.Release.extract_pledges("THURSNK", [{"/tmp/pages/issues.html", "https://normthurston.com/issues"}], dry_run: true)'
+# or fetch live URLs
+sudo docker compose exec app bin/polticool eval 'Polticool.Release.extract_pledges("THURSNK", ["https://normthurston.com/issues"], replace_seeded: true)'
+```
+
 **Manual `docker compose up -d`:** run `sudo docker compose pull app` first. The compose file
 falls back to the `:latest` tag, and the cached `:latest` on the server can be older than the
 deployed SHA image.
