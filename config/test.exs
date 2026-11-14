@@ -43,3 +43,8 @@ config :phoenix,
 config :polticool, Polticool.Anthropic,
   api_key: "test-key",
   req_options: [plug: {Req.Test, Polticool.Anthropic}, retry: false]
+
+config :polticool,
+  research_mode: :live,
+  research_replay_delay_ms: 0,
+  research_cache_dir: Path.expand("../test/fixtures/research_cache", __DIR__)
