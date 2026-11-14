@@ -8,7 +8,7 @@ defmodule Polticool.Matching do
 
     1. **Match (Sonnet)** gets the bill text as a citations-enabled document and
        returns a plain-text verdict. `Anthropic.verify_citations/1` must pass, so an
-       uncited answer is rejected and produces no receipt.
+       answer with no citations at all is rejected and produces no receipt.
     2. **Format (Haiku)** gets only the verified text (no documents) and fills a forced
        tool call: `relation`, `confidence`, `rationale`, `quote`. The receipt's
        `citations` (`cited_text` plus location) come from step 1, never from Haiku.
@@ -171,7 +171,7 @@ defmodule Polticool.Matching do
           {:ok,
            %{
              relation: rel,
-             confidence: String.to_existing_atom(conf),
+             confidence: confidence_atom(conf),
              rationale: input["rationale"] || verdict,
              quote: input["quote"]
            }}
@@ -182,8 +182,16 @@ defmodule Polticool.Matching do
     end
   end
 
+  # Explicit map: String.to_existing_atom/1 fails in dev/mix tasks when the module
+  # defining the atom hasn't been loaded yet.
+  defp confidence_atom("high"), do: :high
+  defp confidence_atom("medium"), do: :medium
+  defp confidence_atom("low"), do: :low
+
   defp store(pledge, bill, cited_blocks, fmt, opts) do
-    citations = cited_blocks |> Enum.flat_map(& &1["citations"]) |> Enum.map(&clean_citation/1)
+    citations =
+      cited_blocks |> Enum.flat_map(&(&1["citations"] || [])) |> Enum.map(&clean_citation/1)
+
     cited_texts = Enum.map(citations, & &1["cited_text"])
 
     # Keep Haiku's quote only if it is really inside a cited passage.

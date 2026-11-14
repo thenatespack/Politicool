@@ -84,9 +84,10 @@ defmodule Polticool.Anthropic do
   end
 
   @doc """
-  Checks that every non-empty text block carries at least one citation.
+  Checks that the answer is grounded: at least one non-empty text block carries a citation.
 
-  Returns `{:ok, cited_blocks}` or `{:error, :uncited, uncited_blocks}`.
+  Returns `{:ok, text_blocks}` (all text blocks, in order) or `{:error, :uncited, text_blocks}`
+  when nothing is cited. Take sources only from each block's `"citations"`.
   Accepts a response body or a list of content blocks.
   """
   def verify_citations(%{"content" => content}), do: verify_citations(content)
@@ -98,10 +99,12 @@ defmodule Polticool.Anthropic do
         _ -> false
       end)
 
-    case Enum.split_with(texts, &(Map.get(&1, "citations") not in [nil, []])) do
-      {cited, []} -> {:ok, cited}
-      {_cited, uncited} -> {:error, :uncited, uncited}
-    end
+    # Citations replies interleave uncited connector text ("This bill ...") with
+    # cited spans, so require at least one citation rather than one per block.
+    # Sources must still come only from the blocks' `citations`.
+    if Enum.any?(texts, &(Map.get(&1, "citations") not in [nil, []])),
+      do: {:ok, texts},
+      else: {:error, :uncited, texts}
   end
 
   defp config(key, default),
