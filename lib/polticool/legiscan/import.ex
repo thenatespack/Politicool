@@ -19,7 +19,11 @@ defmodule Polticool.LegiScan.Import do
 
   @doc """
   Imports from the API for the given session ids (e.g. `["2026GS"]`), skipping any
-  whose dataset hash is unchanged. Options: `:roster`, `:overrides`, `:force`.
+  whose dataset hash is unchanged. Options: `:roster`, `:overrides`, `:force`,
+  `:strict` (abort if any voter is unmapped; default skips their positions and
+  reports them in `stats.unmapped`) and `:refresh_roster` (try live le.utah.gov
+  before the committed snapshot). The dataset hash is not recorded while voters
+  are unmapped, so a re-run after fixing the override file re-imports.
   """
   def import_sessions(sessions, opts \\ []) do
     with {:ok, list} <- LegiScan.dataset_list("UT") do
@@ -46,7 +50,7 @@ defmodule Polticool.LegiScan.Import do
     else
       with {:ok, zip} <- LegiScan.get_dataset(ds["session_id"], ds["access_key"]),
            {:ok, stats} <- import_zip(zip, opts) do
-        record_hash(session, ds)
+        if stats.unmapped == [], do: record_hash(session, ds)
         {:ok, stats}
       end
     end
@@ -107,9 +111,13 @@ defmodule Polticool.LegiScan.Import do
     roll_calls = decode(files, "vote", "roll_call")
     people = decode(files, "people", "person")
 
-    roster = Keyword.get_lazy(opts, :roster, &People.fetch_roster/0)
+    roster =
+      Keyword.get_lazy(opts, :roster, fn ->
+        People.load_roster(refresh: opts[:refresh_roster] || false)
+      end)
+
     overrides = Keyword.get_lazy(opts, :overrides, &People.overrides/0)
-    {mapping, _} = People.resolve(people, roster, overrides)
+    {mapping, missing} = People.resolve(people, roster, overrides)
     people_by_id = Map.new(people, &{&1["people_id"], &1})
 
     voter_ids =
@@ -118,18 +126,21 @@ defmodule Polticool.LegiScan.Import do
       |> Enum.map(& &1["people_id"])
       |> Enum.uniq()
 
+    by_id = Map.new(missing, &{&1.people_id, &1})
+
     unmapped =
       for id <- voter_ids,
           not Map.has_key?(mapping, id),
           do:
-            People.resolve([Map.get(people_by_id, id, %{"people_id" => id})], %{}, %{})
-            |> elem(1)
-            |> hd()
+            Map.get(by_id, id) || People.describe(Map.get(people_by_id, id, %{"people_id" => id}))
 
-    if unmapped != [] do
+    if unmapped != [] and opts[:strict] do
       {:error, {:unmapped_people, unmapped}}
     else
-      Repo.transaction(fn -> do_import(bills, roll_calls, mapping) end, timeout: :infinity)
+      Repo.transaction(
+        fn -> do_import(bills, roll_calls, mapping) |> Map.put(:unmapped, unmapped) end,
+        timeout: :infinity
+      )
     end
   end
 
@@ -148,17 +159,27 @@ defmodule Polticool.LegiScan.Import do
       end
 
     stats =
-      Enum.reduce(roll_calls, %{roll_calls: 0, positions: 0, skipped: 0}, fn rc, acc ->
-        case Map.get(bill_ids, rc["bill_id"]) || bill_id_from_db(rc["bill_id"]) do
-          nil ->
-            %{acc | skipped: acc.skipped + 1}
+      Enum.reduce(
+        roll_calls,
+        %{roll_calls: 0, positions: 0, positions_skipped: 0, skipped: 0},
+        fn rc, acc ->
+          case Map.get(bill_ids, rc["bill_id"]) || bill_id_from_db(rc["bill_id"]) do
+            nil ->
+              %{acc | skipped: acc.skipped + 1}
 
-          bill_id ->
-            vote = upsert_vote(bill_id, rc)
-            n = upsert_positions(vote, rc, mapping)
-            %{acc | roll_calls: acc.roll_calls + 1, positions: acc.positions + n}
+            bill_id ->
+              vote = upsert_vote(bill_id, rc)
+              {n, skipped} = upsert_positions(vote, rc, mapping)
+
+              %{
+                acc
+                | roll_calls: acc.roll_calls + 1,
+                  positions: acc.positions + n,
+                  positions_skipped: acc.positions_skipped + skipped
+              }
+          end
         end
-      end)
+      )
 
     Map.put(stats, :bills, map_size(bill_ids))
   end
@@ -265,8 +286,11 @@ defmodule Polticool.LegiScan.Import do
   end
 
   defp upsert_positions(vote, rc, mapping) do
+    {mapped, unmapped} =
+      rc["votes"] |> List.wrap() |> Enum.split_with(&Map.has_key?(mapping, &1["people_id"]))
+
     rows =
-      for v <- List.wrap(rc["votes"]), into: %{} do
+      for v <- mapped, into: %{} do
         code = Map.fetch!(mapping, v["people_id"])
 
         {code,
@@ -285,7 +309,7 @@ defmodule Polticool.LegiScan.Import do
       )
     end
 
-    map_size(rows)
+    {map_size(rows), length(unmapped)}
   end
 
   defp position(1), do: :yea

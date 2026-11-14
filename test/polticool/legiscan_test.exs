@@ -6,9 +6,19 @@ defmodule Polticool.LegiScanTest do
   alias Polticool.Ballot.{Bill, LegiscanDataset, Vote, VotePosition}
 
   @roster Polticool.Legislators.build_roster([
-            %{"fullName" => "Thurston, Norman K.", "id" => "THURSNK", "house" => "H"},
-            %{"fullName" => "Whyte, Stephen L.", "id" => "WHYTESL", "house" => "H"},
-            %{"fullName" => "Adams, Jake", "id" => "ADAMSJ", "house" => "S"}
+            %{
+              "fullName" => "Thurston, Norman K.",
+              "id" => "THURSNK",
+              "house" => "H",
+              "district" => "62"
+            },
+            %{
+              "fullName" => "Whyte, Stephen L.",
+              "id" => "WHYTESL",
+              "house" => "H",
+              "district" => "66"
+            },
+            %{"fullName" => "Adams, Jake", "id" => "ADAMSJ", "house" => "S", "district" => "12"}
           ])
 
   defp person(id, last, first, role, district),
@@ -142,14 +152,79 @@ defmodule Polticool.LegiScanTest do
     assert first == [2, 2, 3]
   end
 
-  test "unmapped voters fail loudly and write nothing" do
-    zip =
-      dataset_zip([
-        {"UT/x/vote/3.json", roll_call(9003, 5001, "H", "2026-02-12", "x", [{999, 1}])}
-      ])
+  describe "unmapped voters" do
+    defp unmapped_zip,
+      do:
+        dataset_zip([
+          {"UT/x/vote/3.json", roll_call(9003, 5001, "H", "2026-02-12", "x", [{999, 1}])}
+        ])
 
-    assert {:error, {:unmapped_people, [%{people_id: 999}]}} = Import.import_zip(zip, opts())
-    assert Repo.aggregate(Bill, :count) == 0
+    test "strict aborts and writes nothing" do
+      assert {:error, {:unmapped_people, [%{people_id: 999}]}} =
+               Import.import_zip(unmapped_zip(), [strict: true] ++ opts())
+
+      assert Repo.aggregate(Bill, :count) == 0
+    end
+
+    test "non-strict skips their positions, imports the rest and reports them" do
+      assert {:ok, stats} = Import.import_zip(unmapped_zip(), opts())
+      assert [%{people_id: 999, name: _, role: _, district: _}] = stats.unmapped
+      assert stats.positions_skipped == 1
+      assert stats.positions == 3
+      assert stats.roll_calls == 3
+      assert Repo.aggregate(Bill, :count) == 2
+      assert Repo.aggregate(VotePosition, :count) == 3
+    end
+  end
+
+  describe "People mapping" do
+    test "district maps HD-062 to THURSNK, SD-012 to a senator" do
+      people = [
+        person(1, "Thurston", "Norman", "Rep", "HD-062")["person"],
+        person(2, "Adams", "Jacob", "Sen", "SD-012")["person"]
+      ]
+
+      assert {%{1 => "THURSNK", 2 => "ADAMSJ"}, []} = People.resolve(people, @roster)
+    end
+
+    test "district match with a different last name is unmapped, not guessed" do
+      p = person(3, "Replacement", "Norman", "Rep", "HD-062")["person"]
+      assert {%{}, [%{people_id: 3}]} = People.resolve([p], @roster)
+    end
+
+    test "chamber matters for district" do
+      p = person(4, "Thurston", "Norman", "Sen", "SD-062")["person"]
+      assert {%{}, [%{people_id: 4}]} = People.resolve([p], @roster)
+    end
+
+    test "name fallback only when there is no district" do
+      p = person(5, "Whyte", "Stephen", "Rep", "")["person"]
+      assert {%{5 => "WHYTESL"}, []} = People.resolve([p], @roster)
+    end
+
+    test "overrides win over the roster" do
+      p = person(1, "Thurston", "Norman", "Rep", "HD-062")["person"]
+      assert {%{1 => "OVERRIDE"}, []} = People.resolve([p], @roster, %{"1" => "OVERRIDE"})
+    end
+
+    test "committed snapshot is used by default and when live is unavailable" do
+      p = person(1, "Thurston", "Norman", "Rep", "HD-062")["person"]
+
+      assert {%{1 => "THURSNK"}, []} = People.resolve([p], People.load_roster())
+
+      roster = People.load_roster(refresh: true, fetch: fn -> {:error, :timeout} end)
+      assert {%{1 => "THURSNK"}, []} = People.resolve([p], roster)
+    end
+
+    test "refresh prefers the live roster" do
+      live =
+        Polticool.Legislators.build_roster([
+          %{"fullName" => "Only, Live", "id" => "LIVE", "house" => "H", "district" => "1"}
+        ])
+
+      roster = People.load_roster(refresh: true, fetch: fn -> {:ok, live} end)
+      assert roster == live
+    end
   end
 
   describe "API" do
