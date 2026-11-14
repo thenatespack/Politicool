@@ -43,6 +43,7 @@ defmodule Polticool.Research do
   import Ecto.Query
 
   alias Polticool.{Legislators, Legislature, Matching, Money, Pledges, Repo, Scoring}
+  alias Polticool.Ballot
   alias Polticool.Ballot.{Candidate, Pledge, RollCall}
 
   @sessions ["2026GS"]
@@ -355,16 +356,26 @@ defmodule Polticool.Research do
   defp grade_step(emit, candidate, receipts, industries) do
     scorecard =
       step(emit, "grade", "Grading", "Weighing receipts", fn ->
-        card =
-          receipts
-          |> Enum.map(&scorable/1)
-          |> Scoring.score()
-          |> Map.merge(%{
-            candidate: candidate_map(candidate),
-            receipts_count: length(receipts),
-            pledges_count: receipts |> Enum.map(& &1.pledge_id) |> Enum.uniq() |> length(),
-            industries: industries
-          })
+        # Same scorecard as the candidate page, read from what the run persisted.
+        sc = Ballot.scorecard(candidate)
+
+        pledges_count =
+          Repo.aggregate(from(p in Pledge, where: p.candidate_id == ^candidate.id), :count)
+
+        absence =
+          receipts |> Enum.map(&scorable/1) |> Scoring.score() |> Map.fetch!(:absence_rate)
+
+        card = %{
+          bars: Map.take(sc, [:voted, :proposed, :promised]),
+          bars_used: for(k <- [:voted, :proposed, :promised], sc[k] != nil, do: k),
+          score: sc.score,
+          grade: sc.grade,
+          absence_rate: absence,
+          candidate: candidate_map(candidate),
+          receipts_count: length(receipts),
+          pledges_count: pledges_count,
+          industries: industries
+        }
 
         {:ok, "Grade #{card.grade || "n/a"}", card}
       end)

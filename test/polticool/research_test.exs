@@ -1,7 +1,7 @@
 defmodule Polticool.ResearchTest do
   use Polticool.DataCase, async: false
 
-  alias Polticool.{Anthropic, Research}
+  alias Polticool.{Anthropic, Ballot, Research}
   alias Polticool.Ballot.{Bill, Candidate, Pledge, Vote, VotePosition}
 
   @provision "Directs counties to approve residential building permits within 60 days."
@@ -136,6 +136,25 @@ defmodule Polticool.ResearchTest do
     assert {:done, card} = List.last(msgs)
     assert card.grade == "A"
     assert card.candidate.id == c.id
+    assert card.receipts_count == 1
+  end
+
+  test "done payload matches Ballot.scorecard/1, including promised and counts", %{c: c} do
+    # one extra non-specific pledge: promised = 1 specific of 2
+    {:ok, _} =
+      %Pledge{}
+      |> Pledge.changeset(%{candidate_id: c.id, text: "Be a good steward.", specific: false})
+      |> Repo.insert()
+
+    assert {:ok, _} = Research.start(c.id, live_opts())
+    assert {:done, card} = List.last(drain())
+
+    sc = Ballot.scorecard(Repo.get!(Candidate, c.id))
+    assert card.bars == %{voted: sc.voted, proposed: sc.proposed, promised: sc.promised}
+    assert card.grade == sc.grade
+    assert card.score == sc.score
+    assert card.bars.promised == 50.0
+    assert card.pledges_count == 2
     assert card.receipts_count == 1
   end
 
